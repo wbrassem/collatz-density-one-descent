@@ -27,7 +27,7 @@ then
 ```math
 \mathrm{dens}\lbrace
 x\in\mathbb{N}_{>0} :
-\exists n,\quad T^n(x)<x
+\exists n,\quad T^n(x)\lt x
 \rbrace
 =1.
 ```
