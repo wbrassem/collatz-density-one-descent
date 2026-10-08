@@ -14,24 +14,23 @@ orbit eventually falls below its starting value has natural density one.
 
 Equivalently, if
 
-$$
+```math
 T(x)=
 \begin{cases}
 x/2, & x \text{ even},\\
 3x+1, & x \text{ odd},
 \end{cases}
-$$
+```
 
 then
 
-$$
-\mathrm{dens}\,
-\{
+```math
+\mathrm{dens}\lbrace
 x\in\mathbb{N}_{>0} :
-\exists n,\; T^n(x)<x
-\}
+\exists n,\quad T^n(x)<x
+\rbrace
 =1.
-$$
+```
 
 This is a density-one finite-stopping result. It does **not** prove that every
 positive integer descends, nor does it prove the Collatz conjecture.
