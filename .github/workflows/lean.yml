@@ -1,0 +1,25 @@
+name: Lean CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lean:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and audit Lean formalization
+        uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: lean
+          build: true
+          axiom-audit: true
+          axiom-audit-allow: propext,Classical.choice,Quot.sound
+
+      - name: Run Scratch verification harness
+        working-directory: lean
+        run: lake env lean Collatz/Scratch.lean

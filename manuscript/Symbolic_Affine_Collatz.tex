@@ -1,0 +1,5837 @@
+\documentclass[12pt, oneside]{article}
+
+\usepackage{xparse}
+
+\usepackage{geometry}
+\geometry{letterpaper}
+\usepackage[parfill]{parskip}
+\usepackage{float}
+
+% Math packages
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathalpha}
+
+% Tables
+\usepackage{array}
+\usepackage{siunitx}
+\usepackage{booktabs}
+\usepackage{afterpage}
+
+% Hyperlinks
+\usepackage{hyperref}
+
+% References
+\numberwithin{equation}{section}
+\usepackage[numbers]{natbib}
+
+% Theorem environments
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{axiom}{Axiom}[section]
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{conjecture}[theorem]{Conjecture}
+\newtheorem{example}[theorem]{Example}
+
+\theoremstyle{remark}
+\newtheorem*{remark}{Remark}
+
+\title{A Symbolic--Affine Framework for Density-One Collatz Descent}
+\author{Wayne Brassem}
+
+\begin{document}
+
+% Document commands which provide hyperlinks to OEIS sequences referenced herein
+\NewDocumentCommand{\OEIS}{m}{\href{https://oeis.org/#1}{#1}}
+
+\maketitle
+
+\begin{abstract}
+
+We study finite stopping time for the Collatz map through the fully
+accelerated transformation
+\[
+f(x)=\frac{3x+1}{2^{v_2(3x+1)}},
+\]
+acting on the odd positive integers.
+
+Finite accelerated trajectories are encoded by \emph{division words},
+which record the successive \(2\)-adic valuations encountered along an
+orbit. Each division word determines a formal affine map
+\[
+F_\omega(x)
+=
+\frac{3^{|\omega|}x+c(\omega)}{2^{D(\omega)}}.
+\]
+For every nonempty word with positive entries, exact realization is
+equivalent to a single affine congruence modulo
+\(2^{D(\omega)+1}\). Consequently, its realizations form a unique dyadic
+cylinder of natural density \(2^{-(D(\omega)+1)}\), and symbolic prefix
+extension corresponds exactly to cylinder containment.
+
+We organize these cylinders into a residual forest according to the first
+prefix at which the affine slope becomes strictly less than \(1\). Residual
+words have affine slope strictly greater than \(1\) at every nonempty prefix,
+whereas first-contraction words acquire subunit affine slope for the first
+time at their terminal position. The resulting residual sets satisfy an
+exact finite-stage decomposition into first-contraction layers and continued
+residual survival.
+
+To prove that the residual mass vanishes, we introduce the auxiliary weight
+\[
+\left(\frac38\right)^{D(\omega)},
+\]
+whose total residual weight contracts by a factor at most \(3/5\) at each
+symbolic step. Comparison with the true dyadic cylinder weights, together
+with
+\[
+B(m+5)\le B(m)+8,
+\]
+yields a five-step envelope contraction with factor
+\[
+\left(\frac43\right)^8\left(\frac35\right)^5
+=
+\frac{65536}{84375}
+<1.
+\]
+Hence the natural densities of the finite-depth residual sets tend to zero.
+
+A uniform cutoff on each first-contraction layer converts affine contraction
+into genuine descent apart from finitely many exceptional values.
+
+Since the initial residual class is exactly \(3\bmod4\), while positive even
+integers descend after one ordinary Collatz step and odd integers congruent
+to \(1\bmod4\), apart from \(1\), descend after one fully accelerated step,
+it follows that the set of positive integers having an ordinary Collatz
+iterate below their starting value has natural density one.
+
+The proof is deterministic, uses finite-stage natural-density accounting,
+and is independently formalized in Lean~4.
+
+\end{abstract}
+
+\newpage
+\tableofcontents
+
+\newpage
+% ============================================================
+\section{Introduction}
+% ============================================================
+
+The \(3x+1\) problem, commonly known as the Collatz conjecture, concerns
+iteration of the map
+\[
+T(x)=
+\begin{cases}
+\dfrac{x}{2}, & x \text{ even},\\[6pt]
+3x+1, & x \text{ odd},
+\end{cases}
+\]
+on the positive integers. The conjecture asserts that every positive integer
+eventually reaches \(1\). Despite its elementary formulation, the problem
+has resisted proof for decades; historical accounts and surveys of the
+problem and its many equivalent formulations are given by Lagarias
+\cite{Lagarias2010}. Extensive computation has also verified convergence
+over large finite ranges \cite{OliveiraESilva1999}.
+
+A classical weakening of the conjecture asks only whether an orbit eventually
+falls below its starting value. The least positive iterate at which this
+occurs is commonly called the \emph{stopping time}. Terras
+\cite{Terras1976} and, independently, Everett \cite{Everett1977} established
+that finite stopping time occurs for almost every positive integer in the
+sense of natural density.
+
+Several ideas underlying such finite-stopping arguments are already present
+in the classical work. Terras encodes finite trajectories by parity data and
+expresses the resulting iterates in affine form, with a multiplicative
+coefficient determined by that finite symbolic data together with an
+additive remainder. The associated \emph{coefficient stopping time} records
+the first depth at which the multiplicative coefficient becomes less than
+\(1\). The finite parity data also determine arithmetic progressions of
+starting values, providing a residue-class structure from which density
+statements can be obtained; see \cite{Terras1976,Lagarias2010}. Thus affine
+trajectory representations, finite symbolic coding, residue-class
+organization, and the density-one finite-stopping theorem itself are
+classical ingredients.
+
+Subsequent work has obtained substantially stronger control of orbit minima
+in other density settings. Tao \cite{Tao2019} proved that, in logarithmic
+density, almost every Collatz orbit attains almost bounded values: for every
+function \(g(N)\to\infty\), the minimum value attained by the orbit of \(N\)
+is at most \(g(N)\) for logarithmic-density almost every \(N\).
+
+The purpose of the present work is therefore not to introduce affine
+trajectory coding or to claim a new density-one finite-stopping theorem.
+Rather, it develops a self-contained deterministic formulation of the
+finite-stopping argument in fully accelerated coordinates and organizes the
+proof around exact realization classes and a residual-cylinder
+decomposition. The odd part of the dynamics is encoded using the fully
+accelerated map
+\[
+f(x)
+=
+\frac{3x+1}{2^{v_2(3x+1)}},
+\]
+which maps odd positive integers to odd positive integers by removing all
+factors of \(2\) following each \(3x+1\) step.
+
+A finite trajectory under \(f\) determines a \emph{division word}
+\[
+\omega=(d_0,\dots,d_{m-1}),
+\qquad
+d_j=v_2\!\left(3f^j(x)+1\right),
+\]
+recording the exact powers of \(2\) removed at successive accelerated
+steps. Write
+\[
+D(\omega)=d_0+\cdots+d_{m-1}
+\]
+for its total division count. Symbolic composition associates to every
+division word the formal affine map
+\[
+F_\omega(x)
+=
+\frac{3^{|\omega|}x+c(\omega)}
+     {2^{D(\omega)}}.
+\]
+This is the fully accelerated analogue of the classical affine description
+of finite Collatz trajectories. It is algebraic and is defined independently
+of whether the prescribed word is realized by an actual accelerated
+trajectory.
+
+In these coordinates the arithmetic realization problem has an exact
+congruential form. For an admissible division word---that is, a nonempty
+word whose entries are positive---a natural number \(x\) realizes
+\(\omega\) if and only if
+\[
+3^{|\omega|}x+c(\omega)
+\equiv
+2^{D(\omega)}
+\pmod{2^{D(\omega)+1}}.
+\]
+Consequently, the realization set of \(\omega\) is a unique residue class
+modulo
+\[
+2^{D(\omega)+1}.
+\]
+In particular, every admissible finite division word is realizable. The
+additional factor of \(2\) in the modulus distinguishes exact accelerated
+realization from the weaker condition that the formal affine expression is
+merely integral.
+
+These realization classes form nested dyadic cylinders. If \(C_\omega\)
+denotes the realization cylinder of \(\omega\), then
+\[
+\operatorname{dens}(C_\omega)
+=
+2^{-(D(\omega)+1)},
+\]
+and symbolic prefix extension corresponds exactly to cylinder containment.
+Prefix-incomparable words determine disjoint cylinders. Thus the classical
+residue-class organization of finite trajectories takes, in the present
+accelerated coordinates, the form of a nested dyadic cylinder geometry.
+
+The affine slope of a division word is
+\[
+\lambda_\omega
+=
+\frac{3^{|\omega|}}{2^{D(\omega)}}.
+\]
+Let
+\[
+B(m)
+=
+\lfloor m\log_2 3\rfloor+1
+\]
+denote the least integer \(k\) for which
+\[
+3^m<2^k.
+\]
+Then
+\[
+\lambda_\omega<1
+\quad\Longleftrightarrow\quad
+D(\omega)\ge B(|\omega|).
+\]
+This is the accelerated-coordinate counterpart of the classical
+coefficient-stopping comparison: it concerns the multiplicative affine
+coefficient rather than pointwise descent itself.
+
+A subunit affine slope does not by itself imply descent for every
+realization, because the positive affine constant may dominate for small
+initial values. Nevertheless,
+\[
+F_\omega(x)<x
+\]
+for every sufficiently large realization of a fixed subunit-slope word.
+Hence only finitely many points of such a realization cylinder can fail to
+lie below their starting value at the endpoint of the encoded trajectory
+segment, and removing those points does not change the cylinder's natural
+density.
+
+The global argument is organized by the first prefix at which this affine
+threshold is reached. An admissible word is called \emph{residual} when every
+nonempty prefix remains above unit affine slope, and a
+\emph{first-contraction word} when its proper prefixes are residual but its
+terminal prefix has subunit slope. Although the full family of admissible
+words is infinite at every positive symbolic length, the residual family at
+each fixed depth is finite.
+
+If \(\mathcal R_m\) denotes the union of the realization cylinders of
+residual words of length \(m\), and \(\mathcal F_{m+1}\) the corresponding
+first-contraction exit layer, then
+\[
+\mathcal R_m
+=
+\mathcal F_{m+1}
+\sqcup
+\mathcal R_{m+1}.
+\]
+This exact finite-stage decomposition provides the conservation law used
+throughout the residual-forest argument.
+
+Writing
+\[
+M_m
+=
+\operatorname{dens}(\mathcal R_m)
+\]
+for the residual mass, the quantitative task is to prove
+\[
+M_m\longrightarrow0.
+\]
+The proof introduces the auxiliary weight
+\[
+\left(\frac38\right)^{D(\omega)},
+\]
+whose total weight satisfies the uniform one-step bound
+\[
+W_{m+1}\le\frac35\,W_m.
+\]
+Comparison with the true dyadic cylinder weights, together with
+the elementary threshold estimate
+\[
+B(m+5)\le B(m)+8,
+\]
+yields a five-step envelope contraction with factor
+\[
+\left(\frac43\right)^8
+\left(\frac35\right)^5
+=
+\frac{65536}{84375}
+<1.
+\]
+It follows that the unresolved residual mass tends to zero.
+
+The final step converts affine first contraction into genuine dynamical
+descent. Although a fixed first-contraction layer may contain infinitely
+many terminal words, its residual parent level is finite. The affine
+concatenation formula therefore supplies a uniform finite cutoff above
+which every point in the entire exit layer descends. At any fixed residual
+depth, the set of non-descending points is consequently contained in the
+remaining residual set together with a finite exceptional set. Taking the
+residual depth first and then the interval size shows that initially
+residual non-descent has natural density zero.
+
+The initial residual set itself has the simple description
+\[
+\mathcal R_1
+=
+\{x:x\equiv3\pmod4\}.
+\]
+Positive even integers descend immediately under \(T\), while odd integers
+congruent to \(1\pmod4\), apart from \(1\), descend after one fully
+accelerated step. Accelerated iterates occur along the ordinary Collatz
+orbit, so accelerated descent transfers to ordinary descent. Thus the
+residual argument handles the remaining nontrivial congruence class and
+recovers the classical density-one finite-stopping theorem:
+\[
+\operatorname{dens}
+\left\{
+x\in\mathbb N_{>0}:
+\exists n,\;T^n(x)<x
+\right\}
+=
+1.
+\]
+
+The resulting proof is organized through the sequence
+\[
+\begin{aligned}
+\text{division words}
+&\longrightarrow
+\text{affine realization}
+\longrightarrow
+\text{dyadic cylinders}
+\\
+&\longrightarrow
+\text{residual forest}
+\longrightarrow
+\text{residual mass collapse}
+\longrightarrow
+\text{eventual descent}.
+\end{aligned}
+\]
+This organization should be viewed as a fully accelerated, exact-arithmetic
+reformulation of classical finite-stopping machinery rather than as a claim
+of priority for affine or residue coding. Its distinguishing role in the
+present proof is to isolate the unresolved prefixes into finite residual
+levels and control their total dyadic mass through the residual-forest
+decomposition. No probabilistic model of trajectory independence is used,
+and the density argument proceeds through finite-stage decompositions and
+ordinary natural-density limits.
+
+The result concerns descent below the starting value, not convergence to
+\(1\). It does not assert that every positive starting value has finite
+stopping time, nor does it prove that every Collatz trajectory converges.
+The density-zero complement of the descent set may still be nonempty or
+infinite.
+
+\paragraph{Formal verification and reproducibility.}
+The Lean~4 formalization accompanying this manuscript is available at
+\begin{center}
+\url{https://github.com/wbrassem/collatz-density-one-descent}
+\end{center}
+The culminating formal theorem is
+\begin{center}
+\nolinkurl{Collatz.ordinary_collatz_descent_has_natural_density_one}
+\end{center}
+The repository contains the Lean project, verification harness,
+continuous-integration workflow, and manuscript source.
+
+\paragraph{Structure of the Paper.}
+The argument proceeds as follows:
+\begin{itemize}
+\item Section~\ref{sec:division-counts} introduces division words,
+realization, and total division counts.
+\item Section~\ref{sec:affine-representation} develops the formal affine
+representation and the dyadic--ternary slope threshold.
+\item Section~\ref{sec:exact-realizability-residue} proves the exact
+realization criterion and the unique residue class associated with each
+admissible word.
+\item Section~\ref{sec:cylinder-geometry} develops generic dyadic-cylinder
+geometry, counting, natural density, and the realization-cylinder forest.
+\item Section~\ref{sec:affine-contraction-descent} relates subunit affine
+slope to pointwise descent and proves density preservation after removing
+the finite affine exceptional set.
+\item Section~\ref{sec:residual-forest} introduces residual and
+first-contraction words and establishes the finite-stage forest and mass
+decompositions.
+\item Section~\ref{sec:residual-mass-collapse} proves that the residual mass
+tends to zero by means of the auxiliary weighted mass and the five-step
+envelope contraction.
+\item Section~\ref{sec:density-one-descent} converts first contraction into
+genuine descent, identifies the initial residual congruence class, and
+transfers the accelerated result to the ordinary Collatz map.
+\end{itemize}
+
+
+% ============================================================
+\section{Conventions}
+\label{sec:conventions}
+% ============================================================
+
+Throughout,
+\[
+\mathbb N=\{0,1,2,\ldots\},
+\qquad
+\mathbb N_{>0}=\{1,2,3,\ldots\}.
+\]
+
+The classical Collatz conjecture concerns iteration on
+\(\mathbb N_{>0}\). The ordinary Collatz map is therefore regarded as a
+dynamical map on positive integers, while the fully accelerated Collatz map
+acts dynamically on the odd positive integers.
+
+For the arithmetic and symbolic constructions used in this paper, however,
+it is convenient to work in the ambient set \(\mathbb N\). Generic residue
+classes, dyadic cylinders, symbolic data, exponents, indices, and counting
+functions are therefore allowed to involve \(0\).
+
+Natural density is computed using the initial intervals
+\[
+[0,N)=\{0,1,\ldots,N-1\}.
+\]
+Thus a subset of \(\mathbb N_{>0}\) is also regarded as a subset of
+\(\mathbb N\) for purposes of density; the omission of the single point
+\(0\) has no effect on its natural density.
+
+Division words may contain the value \(0\). Positivity conditions required
+for accelerated odd trajectories are imposed explicitly through
+admissibility rather than through the ambient definition of \(\mathbb N\).
+
+Thus the occurrence of \(0\) in the symbolic and arithmetic constructions
+does not enlarge the dynamical domain of the Collatz problem.
+
+
+% ============================================================
+\section{Division Counts and Division Words}
+\label{sec:division-counts}
+% ============================================================
+
+% ------------------------------------------------------------
+\subsection{Division Counts and Division Words}
+% ------------------------------------------------------------
+
+For a positive integer \(n\), let \(v_2(n)\) denote the largest
+\(k\ge0\) such that \(2^k\mid n\). For \(x\in\mathbb N\), define the
+\emph{division count}
+\[
+d(x):=v_2(3x+1),
+\]
+and define
+\[
+f(x):=\frac{3x+1}{2^{d(x)}}.
+\]
+These formulas define arithmetic functions on all of \(\mathbb N\).
+Restricted to the odd positive integers, \(f\) is the fully accelerated
+Collatz map.
+
+Since \(2^{d(x)}\mid 3x+1\), the value \(f(x)\) is again a natural number.
+By construction, removing the complete power of \(2\) from \(3x+1\) leaves
+an odd integer. Hence
+\[
+f(x)\ \text{is odd for every }x\in\mathbb N.
+\]
+Moreover, if \(x\) is odd, then \(3x+1\) is even, and therefore
+\[
+d(x)\ge1.
+\]
+
+\begin{definition}[Division Word]
+A \emph{division word} is a finite sequence
+\[
+\omega=(d_0,\dots,d_{m-1}),
+\]
+where \(m\ge0\) and each \(d_i\in\mathbb N\).
+The case \(m=0\) is the empty division word, denoted by
+\(\varnothing\).
+\end{definition}
+
+For \(x\in\mathbb N\) and \(m\ge0\), define the length-\(m\) division
+word generated by \(x\) to be
+\[
+\omega_m(x)
+:=
+\bigl(
+d(x),d(f(x)),\dots,d(f^{m-1}(x))
+\bigr),
+\]
+with
+\[
+\omega_0(x)=\varnothing.
+\]
+
+\begin{definition}[Valid Division Word]
+A division word
+\[
+\omega=(d_0,\dots,d_{m-1})
+\]
+is \emph{valid} if it is nonempty, equivalently if
+\[
+m\ge1.
+\]
+\end{definition}
+
+\begin{definition}[Admissible Division Word]
+A division word
+\[
+\omega=(d_0,\dots,d_{m-1})
+\]
+is \emph{admissible} if it is valid and
+\[
+d_i\ge1,
+\qquad
+0\le i<m.
+\]
+\end{definition}
+
+\begin{definition}[Realization]
+Let
+\[
+\omega=(d_0,\dots,d_{m-1})
+\]
+be a division word. A natural number \(x\in\mathbb N\) \emph{realizes}
+\(\omega\) if
+\[
+\omega=\omega_m(x).
+\]
+Equivalently,
+\[
+d_i=v_2\!\left(3f^i(x)+1\right),
+\qquad
+0\le i<m.
+\]
+\end{definition}
+
+A division word is called \emph{realizable} if it is realized by at least
+one natural number.
+
+\begin{lemma}[Generated Division Words]
+\label{lem:generated-division-words}
+For every \(x\in\mathbb N\) and every \(m\ge0\), the generated word
+\(\omega_m(x)\) is a division word of length \(m\) and is realized by
+\(x\).
+
+If \(x\) is odd and \(m\ge1\), then \(\omega_m(x)\) is admissible.
+\end{lemma}
+
+\begin{proof}
+For every \(i\ge0\),
+\[
+d(f^i(x))\in\mathbb N,
+\]
+so \(\omega_m(x)\) is a division word. Its length is \(m\), and realization
+by \(x\) follows directly from its definition.
+
+Now suppose that \(x\) is odd and \(m\ge1\). Then
+\[
+d(x)\ge1.
+\]
+Every subsequent iterate \(f^i(x)\) is odd, because \(f\) removes the
+complete power of \(2\) from the corresponding numerator. Hence
+\[
+d(f^i(x))\ge1,
+\qquad
+0\le i<m.
+\]
+Thus every entry of the nonempty word \(\omega_m(x)\) is positive, and
+\(\omega_m(x)\) is admissible.
+\end{proof}
+
+\begin{remark}
+Realization and admissibility are distinct notions. Admissibility is an
+intrinsic positivity condition on a nonempty symbolic word, whereas
+realization asserts that the word actually occurs as an initial segment
+generated by iteration of \(f\).
+
+In particular, no converse to the preceding lemma is being assumed here.
+The arithmetic characterization of realizable division words will be
+established later.
+\end{remark}
+
+% ------------------------------------------------------------
+\subsection{Word Length and Total Division Count}
+% ------------------------------------------------------------
+
+\begin{definition}[Length]
+Let
+\[
+\omega=(d_0,\ldots,d_{m-1})
+\]
+be a division word. Its \emph{length} is
+\[
+|\omega|:=m.
+\]
+\end{definition}
+
+\begin{definition}[Total Division Count]
+Let
+\[
+\omega=(d_0,\ldots,d_{m-1})
+\]
+be a division word. Its \emph{total division count} is
+\[
+D(\omega):=\sum_{i=0}^{m-1}d_i.
+\]
+For the empty word,
+\[
+D(\varnothing)=0.
+\]
+\end{definition}
+
+\begin{lemma}[Length Bound]
+Every admissible division word satisfies
+\[
+|\omega|\le D(\omega).
+\]
+\end{lemma}
+
+\begin{proof}
+If
+\[
+\omega=(d_0,\ldots,d_{m-1})
+\]
+is admissible, then \(d_i\ge1\) for every \(0\le i<m\). Hence
+\[
+D(\omega)
+=
+\sum_{i=0}^{m-1}d_i
+\ge
+\sum_{i=0}^{m-1}1
+=
+m
+=
+|\omega|.
+\]
+\end{proof}
+
+\begin{remark}
+The quantities
+\[
+|\omega|
+\qquad\text{and}\qquad
+D(\omega)
+\]
+record different aspects of the symbolic trajectory. The length
+\(|\omega|\) is the number of applications of \(f\) encoded by the word,
+whereas \(D(\omega)\) is the cumulative exponent of \(2\) removed across
+those steps.
+
+Their interaction will determine the linear coefficient
+\[
+\frac{3^{|\omega|}}{2^{D(\omega)}}
+\]
+of the affine representation developed below.
+\end{remark}
+
+
+% ============================================================
+\section{Affine Representation of Division Words}
+\label{sec:affine-representation}
+% ============================================================
+
+% ------------------------------------------------------------
+\subsection{Formal Symbolic Action and Affine Representation}
+% ------------------------------------------------------------
+
+\begin{definition}[Symbolic Step]
+For a prescribed division count \(d\in\mathbb N\), define the
+\emph{symbolic step}
+\[
+S_d:\mathbb Q\to\mathbb Q,
+\qquad
+S_d(x):=\frac{3x+1}{2^d}.
+\]
+No divisibility or realizability condition is imposed. Thus \(S_d\) is
+defined for every \(d\in\mathbb N\) and every \(x\in\mathbb Q\).
+\end{definition}
+
+\begin{definition}[Symbolic Action of a Division Word]
+Let
+\[
+\omega=(d_0,\dots,d_{m-1})
+\]
+be a division word. Its \emph{symbolic action} is the composition
+\[
+S_\omega
+:=
+S_{d_{m-1}}\circ\cdots\circ S_{d_0}.
+\]
+For the empty word,
+\[
+S_{\varnothing}(x):=x.
+\]
+Equivalently, if
+\[
+\omega=(d_0,\eta),
+\]
+where \(\eta\) denotes the remaining tail, then
+\[
+S_\omega(x)=S_\eta(S_{d_0}(x)).
+\]
+\end{definition}
+
+\begin{definition}[Affine Constant]
+The affine constant \(c(\omega)\in\mathbb N\) of a division word is
+defined recursively by
+\[
+c(\varnothing)=0,
+\]
+and, for
+\[
+\omega=(d_0,\dots,d_{m-1}),\qquad m\ge1,
+\]
+by
+\[
+c(\omega)
+=
+3^{m-1}
++
+2^{d_0}c(d_1,\dots,d_{m-1}).
+\]
+\end{definition}
+
+\begin{definition}[Formal Affine Map]
+For every division word \(\omega\), define
+\[
+F_\omega:\mathbb Q\to\mathbb Q
+\]
+by
+\[
+F_\omega(x)
+=
+\frac{3^{|\omega|}x+c(\omega)}
+     {2^{D(\omega)}}.
+\]
+The rational domain is used because an arbitrary formal division word need
+not prescribe powers of \(2\) that divide the corresponding numerators.
+
+For the empty word,
+\[
+F_{\varnothing}(x)=x,
+\]
+since
+\[
+|\varnothing|=D(\varnothing)=c(\varnothing)=0.
+\]
+\end{definition}
+
+\begin{theorem}[Affine Representation]
+For every division word \(\omega\) and every \(x\in\mathbb Q\),
+\[
+S_\omega(x)=F_\omega(x).
+\]
+Equivalently, symbolic composition of the prescribed steps has the
+closed affine form
+\[
+S_\omega(x)
+=
+\frac{3^{|\omega|}x+c(\omega)}
+     {2^{D(\omega)}}.
+\]
+\end{theorem}
+
+\begin{proof}
+We argue by induction on the word.
+
+For the empty word,
+\[
+S_{\varnothing}(x)=x=F_{\varnothing}(x).
+\]
+
+Now let
+\[
+\omega=(d_0,\eta),
+\]
+where \(\eta\) is the tail of the word. By the induction hypothesis,
+\[
+S_\eta(y)
+=
+\frac{3^{|\eta|}y+c(\eta)}
+     {2^{D(\eta)}}
+\]
+for every \(y\in\mathbb Q\). Therefore
+\[
+\begin{aligned}
+S_\omega(x)
+&=
+S_\eta\!\left(\frac{3x+1}{2^{d_0}}\right)\\
+&=
+\frac{
+3^{|\eta|}
+\left(\frac{3x+1}{2^{d_0}}\right)
++c(\eta)}
+{2^{D(\eta)}}\\
+&=
+\frac{
+3^{|\eta|+1}x
++
+3^{|\eta|}
++
+2^{d_0}c(\eta)}
+{2^{d_0+D(\eta)}}.
+\end{aligned}
+\]
+Since
+\[
+|\omega|=|\eta|+1,
+\qquad
+D(\omega)=d_0+D(\eta),
+\]
+and
+\[
+c(\omega)
+=
+3^{|\eta|}
++
+2^{d_0}c(\eta),
+\]
+we obtain
+\[
+S_\omega(x)
+=
+\frac{3^{|\omega|}x+c(\omega)}
+     {2^{D(\omega)}}
+=
+F_\omega(x).
+\]
+\end{proof}
+
+\begin{corollary}[Affine Representation of a Realized Word]
+If \(x\in\mathbb N\) realizes a division word \(\omega\), then
+\[
+F_\omega(x)=f^{|\omega|}(x).
+\]
+\end{corollary}
+
+\begin{proof}
+Write
+\[
+\omega=(d_0,\dots,d_{m-1}).
+\]
+Since \(x\) realizes \(\omega\),
+\[
+d_i
+=
+v_2\!\left(3f^i(x)+1\right),
+\qquad
+0\le i<m.
+\]
+Consequently, at each stage the prescribed symbolic step agrees with the
+corresponding application of the arithmetic map \(f\):
+\[
+S_{d_i}(f^i(x))=f^{i+1}(x).
+\]
+Iterating through the word gives
+\[
+S_\omega(x)=f^m(x).
+\]
+The affine representation theorem then yields
+\[
+F_\omega(x)=S_\omega(x)=f^{|\omega|}(x).
+\]
+\end{proof}
+
+\begin{remark}[Formal Integrality and Exact Realization]
+The denominator in the affine representation is
+\[
+2^{D(\omega)}.
+\]
+Thus, for \(x\in\mathbb N\), the formal affine value \(F_\omega(x)\) is an
+integer precisely when
+\[
+3^{|\omega|}x+c(\omega)
+\equiv
+0
+\pmod{2^{D(\omega)}}.
+\]
+
+This condition expresses integrality of the formal affine expression only.
+It does not by itself assert that \(x\) realizes \(\omega\). Exact
+realizability requires the prescribed powers of \(2\) to be the exact
+successive \(2\)-adic valuations, a stronger condition developed below.
+\end{remark}
+
+% ------------------------------------------------------------
+\subsection{Concatenation and Prefix Structure}
+% ------------------------------------------------------------
+
+Let \(\omega\eta\) denote the concatenation obtained by appending the
+division word \(\eta\) to the division word \(\omega\). Then
+\[
+|\omega\eta|=|\omega|+|\eta|
+\]
+and
+\[
+D(\omega\eta)=D(\omega)+D(\eta).
+\]
+
+\begin{proposition}[Concatenation of Symbolic and Affine Actions]
+For all division words \(\omega\) and \(\eta\),
+\[
+S_{\omega\eta}
+=
+S_\eta\circ S_\omega
+\]
+and consequently
+\[
+F_{\omega\eta}
+=
+F_\eta\circ F_\omega.
+\]
+\end{proposition}
+
+\begin{proof}
+The first identity follows directly from the definition of symbolic action:
+the entries of \(\omega\) are applied first, followed by the entries of
+\(\eta\).
+
+By the affine representation theorem,
+\[
+S_\omega=F_\omega,
+\qquad
+S_\eta=F_\eta,
+\qquad
+S_{\omega\eta}=F_{\omega\eta}.
+\]
+Therefore
+\[
+F_{\omega\eta}
+=
+S_{\omega\eta}
+=
+S_\eta\circ S_\omega
+=
+F_\eta\circ F_\omega.
+\]
+\end{proof}
+
+\begin{corollary}[Affine Constant under Concatenation]
+For all division words \(\omega\) and \(\eta\),
+\[
+c(\omega\eta)
+=
+3^{|\eta|}c(\omega)
++
+2^{D(\omega)}c(\eta).
+\]
+\end{corollary}
+
+\begin{proof}
+By the preceding proposition,
+\[
+F_{\omega\eta}(x)=F_\eta(F_\omega(x)).
+\]
+Using the affine representations of \(F_\omega\) and \(F_\eta\),
+\[
+\begin{aligned}
+F_\eta(F_\omega(x))
+&=
+\frac{
+3^{|\eta|}
+\left(
+\frac{3^{|\omega|}x+c(\omega)}
+     {2^{D(\omega)}}
+\right)
++c(\eta)}
+{2^{D(\eta)}}\\
+&=
+\frac{
+3^{|\omega|+|\eta|}x
++
+3^{|\eta|}c(\omega)
++
+2^{D(\omega)}c(\eta)}
+{2^{D(\omega)+D(\eta)}}.
+\end{aligned}
+\]
+On the other hand,
+\[
+F_{\omega\eta}(x)
+=
+\frac{
+3^{|\omega|+|\eta|}x+c(\omega\eta)}
+{2^{D(\omega)+D(\eta)}}.
+\]
+Comparing the constant terms gives
+\[
+c(\omega\eta)
+=
+3^{|\eta|}c(\omega)
++
+2^{D(\omega)}c(\eta).
+\]
+\end{proof}
+
+For a division word \(\omega\), let
+\[
+R_\omega
+:=
+\{x\in\mathbb N:x\text{ realizes }\omega\}
+\]
+denote its realization set.
+
+\begin{proposition}[Prefix Nesting]
+For all division words \(\omega\) and \(\eta\),
+\[
+R_{\omega\eta}\subseteq R_\omega.
+\]
+Equivalently, if \(\omega\) is a prefix of a division word \(\nu\), then
+\[
+R_\nu\subseteq R_\omega.
+\]
+\end{proposition}
+
+\begin{proof}
+Suppose \(x\in R_{\omega\eta}\). Then the initial
+\(|\omega|+|\eta|\) division counts generated by \(x\) are precisely the
+entries of \(\omega\eta\). Their first \(|\omega|\) entries are therefore
+the entries of \(\omega\). Hence \(x\) realizes \(\omega\), and so
+\[
+x\in R_\omega.
+\]
+Thus
+\[
+R_{\omega\eta}\subseteq R_\omega.
+\]
+The equivalent prefix formulation follows because any extension of
+\(\omega\) can be written as \(\omega\eta\) for some division word
+\(\eta\).
+\end{proof}
+
+\begin{remark}
+Concatenation therefore has parallel algebraic and dynamical meanings:
+\[
+\omega\longmapsto\omega\eta
+\]
+corresponds algebraically to composition of affine maps,
+\[
+F_{\omega\eta}=F_\eta\circ F_\omega,
+\]
+and dynamically to refinement of realization sets,
+\[
+R_{\omega\eta}\subseteq R_\omega.
+\]
+The latter nesting principle will become the arithmetic nesting of exact
+dyadic realization classes once realizability is characterized
+congruentially.
+\end{remark}
+
+% ------------------------------------------------------------
+\subsection{Explicit Form of the Affine Constant}
+% ------------------------------------------------------------
+
+The recursive definition of \(c(\omega)\) is convenient for constructing
+the affine map, but it obscures the contribution of the individual
+additive terms introduced along the symbolic trajectory. We now make those
+contributions explicit.
+
+Let
+\[
+\omega=(d_0,\dots,d_{m-1})
+\]
+be a division word. For \(0\le j\le m\), define the \emph{prefix division
+count}
+\[
+D_j(\omega)
+:=
+\sum_{i=0}^{j-1}d_i.
+\]
+Thus
+\[
+D_0(\omega)=0,
+\qquad
+D_m(\omega)=D(\omega).
+\]
+
+\begin{theorem}[Explicit Form of the Affine Constant]
+\label{thm:explicit-affine-constant}
+For every division word
+\[
+\omega=(d_0,\dots,d_{m-1}),
+\]
+the affine constant is
+\[
+c(\omega)
+=
+\sum_{j=0}^{m-1}
+3^{m-1-j}2^{D_j(\omega)}.
+\]
+Equivalently,
+\[
+c(\omega)
+=
+\sum_{j=0}^{m-1}
+3^{m-1-j}
+2^{\sum_{i=0}^{j-1}d_i},
+\]
+where the sum in the exponent is \(0\) when \(j=0\).
+\end{theorem}
+
+\begin{proof}
+We argue by induction on the length \(m\).
+
+For \(m=0\), the word is empty. Both the defining value
+\[
+c(\varnothing)=0
+\]
+and the displayed sum are zero.
+
+Now suppose \(m\ge1\), and write
+\[
+\omega=(d_0,\eta),
+\qquad
+\eta=(d_1,\dots,d_{m-1}).
+\]
+By the recursive definition of the affine constant,
+\[
+c(\omega)
+=
+3^{m-1}
++
+2^{d_0}c(\eta).
+\]
+Applying the induction hypothesis to the tail \(\eta\) gives
+\[
+c(\eta)
+=
+\sum_{k=0}^{m-2}
+3^{m-2-k}
+2^{\sum_{i=1}^{k}d_i},
+\]
+where the exponent sum is empty when \(k=0\). Hence
+\[
+c(\omega)
+=
+3^{m-1}
++
+\sum_{k=0}^{m-2}
+3^{m-2-k}
+2^{d_0+\sum_{i=1}^{k}d_i}.
+\]
+Set \(j=k+1\). Then
+\[
+m-2-k=m-1-j
+\]
+and
+\[
+d_0+\sum_{i=1}^{k}d_i
+=
+\sum_{i=0}^{j-1}d_i
+=
+D_j(\omega).
+\]
+The initial term is
+\[
+3^{m-1}
+=
+3^{m-1}2^{D_0(\omega)},
+\]
+so adjoining it as the \(j=0\) term yields
+\[
+c(\omega)
+=
+\sum_{j=0}^{m-1}
+3^{m-1-j}2^{D_j(\omega)}.
+\]
+\end{proof}
+
+\begin{corollary}
+For every division word \(\omega=(d_0,\dots,d_{m-1})\),
+\[
+F_\omega(x)
+=
+\frac{
+3^m x
++
+\displaystyle\sum_{j=0}^{m-1}
+3^{m-1-j}2^{D_j(\omega)}
+}
+{2^{D(\omega)}}.
+\]
+\end{corollary}
+
+\begin{remark}
+The explicit formula records the accumulated contribution of each
+additive \(+1\) introduced during symbolic iteration. The contribution
+created at step \(j\) is multiplied by
+\[
+3^{m-1-j}
+\]
+during the remaining symbolic steps, while the factor
+\[
+2^{D_j(\omega)}
+\]
+records all prescribed divisions that occurred before that contribution
+was introduced.
+
+Thus the affine constant retains the time ordering of the division word,
+not merely its total division count.
+\end{remark}
+
+% ------------------------------------------------------------
+\subsection{Dyadic-Ternary Balance}
+% ------------------------------------------------------------
+
+The affine representation
+\[
+F_\omega(x)
+=
+\frac{3^{|\omega|}x+c(\omega)}
+     {2^{D(\omega)}}
+\]
+contains two cumulative multiplicative factors: the ternary factor
+\(3^{|\omega|}\), contributed by the \(3x+1\) term at each symbolic step,
+and the dyadic factor \(2^{D(\omega)}\), arising from the prescribed
+divisions.
+
+Their balance is governed by a natural integer threshold.
+
+\begin{definition}[Dyadic Threshold]
+For \(m\in\mathbb N\), let \(B(m)\) be the least natural number \(k\)
+such that
+\[
+3^m<2^k.
+\]
+Thus
+\[
+B(m)
+=
+\min\{k\in\mathbb N:3^m<2^k\}.
+\]
+\end{definition}
+
+Since \(0\in\mathbb N\), the definition includes \(m=0\). In particular,
+\[
+B(0)=1,
+\]
+since \(3^0=1<2\), while \(1\nless 1\).
+
+\begin{lemma}[Threshold Characterization]
+For all \(m,k\in\mathbb N\),
+\[
+B(m)\le k
+\quad\Longleftrightarrow\quad
+3^m<2^k.
+\]
+\end{lemma}
+
+\begin{proof}
+By definition, \(B(m)\) is the least exponent for which
+\[
+3^m<2^{B(m)}.
+\]
+If \(B(m)\le k\), monotonicity of \(2^k\) gives
+\[
+3^m<2^{B(m)}\le2^k.
+\]
+Conversely, if \(3^m<2^k\), then \(k\) belongs to the defining set for
+\(B(m)\), and minimality gives
+\[
+B(m)\le k.
+\]
+\end{proof}
+
+\begin{proposition}[Logarithmic Form of the Threshold]
+For every \(m\in\mathbb N\),
+\[
+B(m)
+=
+\lfloor m\log_2 3\rfloor+1.
+\]
+\end{proposition}
+
+\begin{proof}
+The inequality
+\[
+3^m<2^k
+\]
+is equivalent to
+\[
+m\log_2 3<k.
+\]
+Hence \(B(m)\) is the least integer strictly greater than
+\(m\log_2 3\), namely
+\[
+\lfloor m\log_2 3\rfloor+1.
+\]
+\end{proof}
+
+\begin{remark}
+The sequence \(B(m)\) is OEIS sequence \OEIS{A020914}.
+The OEIS identification is descriptive only; the argument below uses the
+intrinsic threshold characterization.
+\end{remark}
+
+\begin{definition}[Affine Slope]
+For a division word \(\omega\), define its \emph{affine slope} by
+\[
+\lambda_\omega
+:=
+\frac{3^{|\omega|}}{2^{D(\omega)}}.
+\]
+Thus
+\[
+F_\omega(x)
+=
+\lambda_\omega x
++
+\frac{c(\omega)}{2^{D(\omega)}}.
+\]
+\end{definition}
+
+\begin{theorem}[Dyadic Threshold and Affine Slope]
+For every division word \(\omega\),
+\[
+\lambda_\omega<1
+\quad\Longleftrightarrow\quad
+B(|\omega|)\le D(\omega).
+\]
+Equivalently,
+\[
+\lambda_\omega<1
+\quad\Longleftrightarrow\quad
+3^{|\omega|}<2^{D(\omega)}.
+\]
+\end{theorem}
+
+\begin{proof}
+Since \(D(\omega)\in\mathbb N\), we have
+\[
+2^{D(\omega)}\ge1,
+\]
+and hence the denominator of \(\lambda_\omega\) is positive. Therefore
+\[
+\lambda_\omega<1
+\quad\Longleftrightarrow\quad
+3^{|\omega|}<2^{D(\omega)}.
+\]
+Applying the threshold characterization with
+\[
+m=|\omega|,
+\qquad
+k=D(\omega)
+\]
+gives
+\[
+3^{|\omega|}<2^{D(\omega)}
+\quad\Longleftrightarrow\quad
+B(|\omega|)\le D(\omega).
+\]
+\end{proof}
+
+\begin{corollary}[Strict Slope Dichotomy]
+If \(\omega\) is nonempty, then
+\[
+\lambda_\omega<1
+\qquad\text{or}\qquad
+\lambda_\omega>1.
+\]
+In particular,
+\[
+\lambda_\omega\ne1.
+\]
+\end{corollary}
+
+\begin{proof}
+Equality would require
+\[
+3^{|\omega|}=2^{D(\omega)}.
+\]
+If \(D(\omega)>0\), the right-hand side is even while the left-hand side
+is odd. If \(D(\omega)=0\), the right-hand side is \(1\), whereas
+\(3^{|\omega|}>1\) because \(\omega\) is nonempty. Thus equality is
+impossible.
+\end{proof}
+
+\begin{corollary}[Positivity of the Affine Constant]
+If \(\omega\) is nonempty, then
+\[
+c(\omega)>0.
+\]
+\end{corollary}
+
+\begin{proof}
+Let \(|\omega|=m\ge1\). By the explicit formula,
+\[
+c(\omega)
+=
+\sum_{j=0}^{m-1}
+3^{m-1-j}2^{D_j(\omega)}.
+\]
+Every summand is nonnegative, and the \(j=0\) term is
+\[
+3^{m-1}>0.
+\]
+Hence \(c(\omega)>0\).
+\end{proof}
+
+\begin{remark}[Slope versus Descent]
+The inequality
+\[
+\lambda_\omega<1
+\]
+is a statement about the linear coefficient of \(F_\omega\); it is not by
+itself a statement that the encoded trajectory descends below its starting
+value.
+
+Indeed,
+\[
+F_\omega(x)-x
+=
+\frac{
+\bigl(3^{|\omega|}-2^{D(\omega)}\bigr)x+c(\omega)}
+{2^{D(\omega)}}.
+\]
+When
+\[
+3^{|\omega|}<2^{D(\omega)},
+\]
+the linear contribution is negative, but the affine constant
+\(c(\omega)>0\) offsets part of that decrease. Thus the slope determines
+the eventual direction of the affine map, while actual descent also
+depends on the starting value and the affine constant.
+
+The relation between subunit slope and genuine descent on realized
+trajectories will be established later.
+\end{remark}
+
+% ------------------------------------------------------------
+\subsection{Formal Integrality versus Exact Realization}
+% ------------------------------------------------------------
+
+Consider the division word
+\[
+\omega=(1,1,1,4).
+\]
+It has length
+\[
+|\omega|=4
+\]
+and total division count
+\[
+D(\omega)=1+1+1+4=7.
+\]
+Since
+\[
+B(4)=7,
+\]
+this word lies exactly at the dyadic threshold:
+\[
+3^4=81<128=2^7,
+\]
+and therefore
+\[
+\lambda_\omega=\frac{81}{128}<1.
+\]
+
+The prefix division counts are
+\[
+D_0(\omega)=0,\qquad
+D_1(\omega)=1,\qquad
+D_2(\omega)=2,\qquad
+D_3(\omega)=3.
+\]
+Hence the explicit formula for the affine constant gives
+\[
+\begin{aligned}
+c(\omega)
+&=
+3^3 2^0
++
+3^2 2^1
++
+3^1 2^2
++
+3^0 2^3\\
+&=
+27+18+12+8\\
+&=
+65.
+\end{aligned}
+\]
+Thus
+\[
+F_\omega(x)
+=
+\frac{81x+65}{128}.
+\]
+
+For \(F_\omega(x)\) to be integral, it is necessary and sufficient that
+\[
+81x+65\equiv0\pmod{128}.
+\]
+Since
+\[
+81^{-1}\equiv49\pmod{128},
+\]
+this is equivalent to
+\[
+x\equiv15\pmod{128}.
+\]
+
+This residue class therefore describes exactly the natural numbers for which
+the \emph{formal} affine expression associated with \(\omega\) is integral.
+It does not, however, follow that every such number realizes \(\omega\).
+
+Indeed, the least positive representative \(x=15\) satisfies the
+integrality congruence, but its fully accelerated trajectory begins
+\[
+15\longmapsto23\longmapsto35\longmapsto53\longmapsto5.
+\]
+The first three division counts are \(1,1,1\), but at the fourth step
+\[
+3\cdot53+1
+=
+160
+=
+2^5\cdot5.
+\]
+Thus the fourth exact valuation is \(5\), whereas \(\omega\) prescribes
+\(4\).
+
+The formal symbolic step prescribed by \(\omega\) would instead give
+\[
+\frac{3\cdot53+1}{2^4}
+=
+10.
+\]
+Accordingly,
+\[
+F_\omega(15)=10,
+\]
+while the actual fourth fully accelerated iterate is
+\[
+f^4(15)=5.
+\]
+The formal affine expression is integral, but \(15\) does not realize
+\(\omega\).
+
+If \(x\) did realize \(\omega\), then
+\[
+F_\omega(x)=f^4(x)
+\]
+would be odd. Hence exact realization necessarily imposes the additional
+parity condition
+\[
+\frac{81x+65}{128}\equiv1\pmod2,
+\]
+or equivalently
+\[
+81x+65\equiv128\pmod{256}.
+\]
+Since
+\[
+81^{-1}\equiv177\pmod{256},
+\]
+this strengthened congruence is equivalent to
+\[
+x\equiv143\pmod{256}.
+\]
+
+Taking the least positive representative \(x=143\), we find
+\[
+143\longmapsto215\longmapsto323\longmapsto485\longmapsto91.
+\]
+Indeed,
+\[
+\begin{aligned}
+3\cdot143+1 &= 2\cdot215,\\
+3\cdot215+1 &= 2\cdot323,\\
+3\cdot323+1 &= 2\cdot485,\\
+3\cdot485+1 &= 2^4\cdot91,
+\end{aligned}
+\]
+so the successive exact \(2\)-adic valuations are
+\[
+(1,1,1,4).
+\]
+Thus \(143\) genuinely realizes \(\omega\).
+
+\begin{remark}[Interpretation]
+The example exhibits two distinct arithmetic conditions.
+
+The congruence
+\[
+3^{|\omega|}x+c(\omega)
+\equiv0
+\pmod{2^{D(\omega)}}
+\]
+expresses only integrality of the formal affine map. For the present word,
+it gives the class
+\[
+x\equiv15\pmod{128},
+\]
+which contains values such as \(15\) that do not realize \(\omega\).
+
+Realization necessarily requires the quotient obtained after removing the
+prescribed total power \(2^{D(\omega)}\) to be odd. In this example that
+adds one dyadic bit and refines the integrality class to
+\[
+x\equiv143\pmod{256}.
+\]
+
+The direct calculation above shows that \(143\) realizes the word. It does
+not yet establish that the strengthened congruence characterizes all
+realizations of an arbitrary admissible division word. The following
+development proves precisely that stronger statement.
+\end{remark}
+
+
+% ============================================================
+\section{Exact Realizability and Residue Structure}
+\label{sec:exact-realizability-residue}
+% ============================================================
+
+The preceding section associated a formal affine map with every division
+word, independently of whether that word is realized under iteration of the
+arithmetic map \(f\). We now determine the additional arithmetic conditions
+that distinguish formal symbolic integrality from exact realization.
+
+% ------------------------------------------------------------
+\subsection{Affine Integrality and Prefix Propagation}
+% ------------------------------------------------------------
+
+\begin{theorem}[Natural Affine Identity for a Realized Word]
+\label{thm:natural-affine-identity}
+
+Let
+\[
+\omega=(d_0,\dots,d_{m-1})
+\]
+be a division word, and let \(x\in\mathbb N\) realize \(\omega\). Then
+\[
+3^m x+c(\omega)
+=
+2^{D(\omega)}f^m(x).
+\]
+\end{theorem}
+
+\begin{proof}
+Since \(x\) realizes \(\omega\), the affine representation of a realized
+word gives
+\[
+F_\omega(x)=f^m(x).
+\]
+By definition,
+\[
+F_\omega(x)
+=
+\frac{3^m x+c(\omega)}{2^{D(\omega)}}.
+\]
+Hence
+\[
+\frac{3^m x+c(\omega)}{2^{D(\omega)}}
+=
+f^m(x).
+\]
+Multiplying by \(2^{D(\omega)}\) yields
+\[
+3^m x+c(\omega)
+=
+2^{D(\omega)}f^m(x).
+\]
+\end{proof}
+
+\begin{corollary}[Formal Integrality of a Realized Word]
+\label{cor:realized-formal-integrality}
+
+If \(x\in\mathbb N\) realizes a division word \(\omega\), then
+\[
+3^{|\omega|}x+c(\omega)
+\equiv
+0
+\pmod{2^{D(\omega)}}.
+\]
+\end{corollary}
+
+\begin{proof}
+By Theorem~\ref{thm:natural-affine-identity},
+\[
+3^{|\omega|}x+c(\omega)
+=
+2^{D(\omega)}f^{|\omega|}(x),
+\]
+so the affine numerator is divisible by \(2^{D(\omega)}\).
+\end{proof}
+
+\begin{remark}
+The converse is not yet available. Divisibility of the affine numerator by
+\(2^{D(\omega)}\) guarantees only that the formal affine endpoint is
+integral. It does not assert that the prescribed powers of \(2\) are the
+exact successive \(2\)-adic valuations.
+
+The example of \(\omega=(1,1,1,4)\) showed this distinction explicitly:
+\(x=15\) satisfies the formal integrality congruence but does not realize
+the word.
+\end{remark}
+
+\begin{theorem}[Prefix Congruence Propagation]
+\label{thm:prefix-congruence-propagation}
+
+Let
+\[
+\omega=(d_0,\dots,d_{m-1})
+\]
+be a division word, let \(x\in\mathbb N\), and suppose
+\[
+3^m x+c(\omega)
+\equiv
+0
+\pmod{2^{D(\omega)}}.
+\]
+For \(0\le j\le m\), let
+\[
+\omega_{\le j}
+=
+(d_0,\dots,d_{j-1})
+\]
+denote the prefix of length \(j\). Then
+\[
+3^j x+c(\omega_{\le j})
+\equiv
+0
+\pmod{2^{D(\omega_{\le j})}}.
+\]
+Thus formal integrality of the full affine numerator forces the
+corresponding formal integrality condition at every prefix.
+\end{theorem}
+
+\begin{proof}
+Fix \(j\) with \(0\le j\le m\), and write
+\[
+\omega=\omega_{\le j}\eta,
+\]
+where \(\eta\) is the remaining suffix.
+
+The concatenation formula for the affine constant gives
+\[
+c(\omega)
+=
+3^{|\eta|}c(\omega_{\le j})
++
+2^{D(\omega_{\le j})}c(\eta),
+\]
+and
+\[
+m=j+|\eta|.
+\]
+Therefore
+\[
+3^m x+c(\omega)
+=
+3^{|\eta|}
+\bigl(3^j x+c(\omega_{\le j})\bigr)
++
+2^{D(\omega_{\le j})}c(\eta).
+\]
+
+Moreover,
+\[
+D(\omega)
+=
+D(\omega_{\le j})+D(\eta),
+\]
+so
+\[
+2^{D(\omega_{\le j})}
+\mid
+2^{D(\omega)}.
+\]
+The assumed congruence modulo \(2^{D(\omega)}\) therefore implies
+\[
+3^m x+c(\omega)
+\equiv
+0
+\pmod{2^{D(\omega_{\le j})}}.
+\]
+The second term in the preceding decomposition is already divisible by
+\(2^{D(\omega_{\le j})}\), hence
+\[
+3^{|\eta|}
+\bigl(3^j x+c(\omega_{\le j})\bigr)
+\equiv
+0
+\pmod{2^{D(\omega_{\le j})}}.
+\]
+
+Since \(3^{|\eta|}\) is odd, it is coprime to every power of \(2\) and is
+therefore invertible modulo \(2^{D(\omega_{\le j})}\). Cancelling this
+factor gives
+\[
+3^j x+c(\omega_{\le j})
+\equiv
+0
+\pmod{2^{D(\omega_{\le j})}}.
+\]
+Since \(j\) was arbitrary, the result holds for every prefix.
+\end{proof}
+
+\begin{remark}[Endpoint Integrality versus Stepwise Integrality]
+The prefix theorem shows that the global affine congruence is not merely an
+endpoint condition. If
+\[
+3^{|\omega|}x+c(\omega)
+\equiv
+0
+\pmod{2^{D(\omega)}},
+\]
+then for every prefix \(\omega_{\le j}\),
+\[
+F_{\omega_{\le j}}(x)
+=
+\frac{
+3^j x+c(\omega_{\le j})
+}{
+2^{D(\omega_{\le j})}
+}
+\]
+is a natural number.
+
+Thus the prescribed symbolic divisions are arithmetically compatible at
+every prefix stage. What remains unresolved is \emph{exactness}: the
+quotient after a prescribed division may still contain an additional
+factor of \(2\).
+
+Exact realization therefore requires one further parity bit. The next
+subsection identifies that local exactness condition and then lifts it to
+the complete division word.
+\end{remark}
+
+% ------------------------------------------------------------
+\subsection{Exact Valuation and the Additional Parity Bit}
+% ------------------------------------------------------------
+
+Formal integrality guarantees that the prescribed power of \(2\) divides
+the relevant numerator. Exact realization requires more: after that power
+of \(2\) has been removed, the remaining quotient must be odd.
+
+The local arithmetic condition is elementary but fundamental.
+
+\begin{lemma}[Exact Valuation Congruence]
+\label{lem:exact-valuation-congruence}
+Let \(x,d\in\mathbb N\). Then
+\[
+v_2(3x+1)=d
+\]
+if and only if
+\[
+3x+1
+\equiv
+2^d
+\pmod{2^{d+1}}.
+\]
+Equivalently,
+\[
+3x+1=2^d q
+\]
+for some odd \(q\in\mathbb N\).
+\end{lemma}
+
+\begin{proof}
+If
+\[
+v_2(3x+1)=d,
+\]
+then by definition
+\[
+3x+1=2^d q
+\]
+for some odd natural number \(q\). Writing
+\[
+q=2k+1
+\]
+gives
+\[
+3x+1
+=
+2^d(2k+1)
+=
+2^{d+1}k+2^d,
+\]
+and hence
+\[
+3x+1
+\equiv
+2^d
+\pmod{2^{d+1}}.
+\]
+
+Conversely, suppose
+\[
+3x+1
+\equiv
+2^d
+\pmod{2^{d+1}}.
+\]
+Then
+\[
+3x+1
+=
+2^{d+1}k+2^d
+=
+2^d(2k+1)
+\]
+for some \(k\in\mathbb N\). Since \(2k+1\) is odd, exactly \(d\) factors
+of \(2\) divide \(3x+1\). Therefore
+\[
+v_2(3x+1)=d.
+\]
+\end{proof}
+
+\begin{remark}
+The distinction between divisibility and exact valuation is therefore the
+distinction between
+\[
+3x+1\equiv0\pmod{2^d}
+\]
+and
+\[
+3x+1\equiv2^d\pmod{2^{d+1}}.
+\]
+
+The first says only that the prescribed division by \(2^d\) is possible.
+The second says that the quotient after that division is odd, and therefore
+that \(d\) is the exact \(2\)-adic valuation.
+\end{remark}
+
+
+% ------------------------------------------------------------
+\subsection{The Exact Realization Criterion}
+% ------------------------------------------------------------
+
+The preceding lemma gives a local criterion for one exact symbolic step.
+The next theorem shows that, for an admissible division word, all of the
+local exact-valuation conditions are encoded simultaneously by one global
+affine congruence.
+
+\begin{theorem}[Exact Realization Criterion]
+\label{thm:exact-realization-criterion}
+
+Let
+\[
+\omega=(d_0,\dots,d_{m-1})
+\]
+be an admissible division word, and let \(x\in\mathbb N\). Then \(x\)
+realizes \(\omega\) if and only if
+\[
+3^m x+c(\omega)
+\equiv
+2^{D(\omega)}
+\pmod{2^{D(\omega)+1}}.
+\]
+\end{theorem}
+
+\begin{proof}
+Suppose first that \(x\) realizes \(\omega\). Since \(\omega\) is
+admissible, it is nonempty and its first division count satisfies
+\(d_0\ge1\). Since \(x\) realizes \(\omega\),
+\[
+d_0=v_2(3x+1).
+\]
+Hence
+\[
+v_2(3x+1)\ge1,
+\]
+so \(x\) is odd. Since \(x\in\mathbb N\), it follows that \(x>0\).
+Thus the realized trajectory is genuinely a fully accelerated Collatz
+trajectory.
+
+By the natural affine identity,
+\[
+3^m x+c(\omega)
+=
+2^{D(\omega)}f^m(x).
+\]
+Since \(m\ge1\), the accelerated endpoint \(f^m(x)\) is odd. Hence
+\[
+f^m(x)\equiv1\pmod2.
+\]
+Multiplying this congruence by \(2^{D(\omega)}\) gives
+\[
+3^m x+c(\omega)
+\equiv
+2^{D(\omega)}
+\pmod{2^{D(\omega)+1}}.
+\]
+
+For the converse, we prove a slightly stronger statement by induction on
+the word length.
+
+Let
+\[
+\eta=(e_0,\dots,e_{n-1})
+\]
+be any finite division word whose entries are positive, allowing also the
+empty word when \(n=0\). We claim that if
+\[
+3^n x+c(\eta)
+\equiv
+2^{D(\eta)}
+\pmod{2^{D(\eta)+1}},
+\]
+then \(x\) is odd and realizes \(\eta\).
+
+If \(n=0\), then
+\[
+D(\eta)=0,
+\qquad
+c(\eta)=0,
+\]
+and the exact congruence becomes
+\[
+x\equiv1\pmod2.
+\]
+Thus \(x\) is odd. The empty word is realized trivially, so the claim
+holds.
+
+Now suppose \(n\ge1\), and write
+\[
+\eta=(e_0,\eta'),
+\qquad
+\eta'=(e_1,\dots,e_{n-1}).
+\]
+The exact congruence implies, after reducing modulo \(2^{D(\eta)}\),
+\[
+3^n x+c(\eta)
+\equiv
+0
+\pmod{2^{D(\eta)}}.
+\]
+By prefix congruence propagation, the one-term prefix \((e_0)\) therefore
+satisfies
+\[
+3x+1
+\equiv
+0
+\pmod{2^{e_0}}.
+\]
+Hence there exists \(y\in\mathbb N\) such that
+\[
+3x+1=2^{e_0}y.
+\]
+
+Using
+\[
+c(\eta)
+=
+3^{n-1}
++
+2^{e_0}c(\eta')
+\]
+and
+\[
+D(\eta)
+=
+e_0+D(\eta'),
+\]
+we obtain
+\[
+\begin{aligned}
+3^n x+c(\eta)
+&=
+3^{n-1}(3x+1)
++
+2^{e_0}c(\eta')\\
+&=
+2^{e_0}
+\left(
+3^{n-1}y+c(\eta')
+\right).
+\end{aligned}
+\]
+
+Substituting this factorization into the exact congruence gives
+\[
+2^{e_0}
+\left(
+3^{n-1}y+c(\eta')
+\right)
+\equiv
+2^{e_0}2^{D(\eta')}
+\pmod{
+2^{e_0}2^{D(\eta')+1}
+}.
+\]
+Since the modulus itself contains the factor \(2^{e_0}\), this congruence
+is equivalent to divisibility by
+\[
+2^{e_0}2^{D(\eta')+1}
+\]
+of the difference of the two sides. Cancelling the common positive factor
+\(2^{e_0}\) in that divisibility relation yields
+\[
+3^{n-1}y+c(\eta')
+\equiv
+2^{D(\eta')}
+\pmod{2^{D(\eta')+1}}.
+\]
+
+Every entry of \(\eta'\) is positive, so the induction hypothesis applies.
+Therefore \(y\) is odd and realizes \(\eta'\).
+
+Since
+\[
+3x+1=2^{e_0}y
+\]
+with \(y\) odd, Lemma~\ref{lem:exact-valuation-congruence} gives
+\[
+v_2(3x+1)=e_0.
+\]
+Consequently,
+\[
+f(x)=y.
+\]
+Moreover \(e_0\ge1\), so \(3x+1\) is even, which forces \(x\) to be odd.
+
+Thus the first exact division count of \(x\) is \(e_0\), and its next
+accelerated iterate \(y=f(x)\) realizes the tail \(\eta'\). Therefore
+\(x\) realizes the complete word \(\eta\).
+
+This proves the induction statement. Applying it to the admissible word
+\(\omega\) proves the converse implication.
+\end{proof}
+
+\begin{remark}[The Additional Dyadic Bit]
+The distinction between the two affine congruences is now exact.
+
+The congruence
+\[
+3^{|\omega|}x+c(\omega)
+\equiv
+0
+\pmod{2^{D(\omega)}}
+\]
+expresses formal integrality. It guarantees that all prescribed divisions
+are arithmetically possible, including at every prefix, but does not require
+those divisions to remove the complete power of \(2\).
+
+By contrast,
+\[
+3^{|\omega|}x+c(\omega)
+\equiv
+2^{D(\omega)}
+\pmod{2^{D(\omega)+1}}
+\]
+is equivalent, for admissible \(\omega\), to exact realization of the
+entire division word.
+
+The additional dyadic bit records that, after the prescribed factor
+\(2^{D(\omega)}\) has been removed, the resulting endpoint is odd.
+Remarkably, together with prefix integrality this single endpoint parity
+condition forces exactness at every intermediate step.
+\end{remark}
+
+
+% ------------------------------------------------------------
+\subsection{Exact Realization Residue Classes}
+% ------------------------------------------------------------
+
+The exact realization criterion converts realization into a single linear
+congruence in the initial value. Because its coefficient is an odd power of
+\(3\), that congruence determines one and only one dyadic residue class.
+
+\begin{theorem}[Exact Realization Residue Class]
+\label{thm:exact-realization-residue-class}
+
+Let
+\[
+\omega=(d_0,\dots,d_{m-1})
+\]
+be an admissible division word. Then there exists a unique residue class
+\[
+r_\omega
+\pmod{2^{D(\omega)+1}}
+\]
+such that
+\[
+x\text{ realizes }\omega
+\quad\Longleftrightarrow\quad
+x\equiv r_\omega
+\pmod{2^{D(\omega)+1}}.
+\]
+
+Equivalently, there is a unique canonical representative
+\[
+0\le r_\omega<2^{D(\omega)+1}
+\]
+with this property.
+\end{theorem}
+
+\begin{proof}
+By Theorem~\ref{thm:exact-realization-criterion}, \(x\) realizes
+\(\omega\) if and only if
+\[
+3^m x+c(\omega)
+\equiv
+2^{D(\omega)}
+\pmod{2^{D(\omega)+1}}.
+\]
+
+Since \(3^m\) is odd,
+\[
+\gcd\!\left(3^m,2^{D(\omega)+1}\right)=1.
+\]
+Hence multiplication by \(3^m\) is invertible modulo
+\(2^{D(\omega)+1}\). Therefore the affine linear congruence
+\[
+3^m x+c(\omega)
+\equiv
+2^{D(\omega)}
+\pmod{2^{D(\omega)+1}}
+\]
+has a unique solution class for \(x\) modulo \(2^{D(\omega)+1}\).
+
+Denote its unique canonical representative by \(r_\omega\). Then
+\[
+x\text{ realizes }\omega
+\quad\Longleftrightarrow\quad
+x\equiv r_\omega
+\pmod{2^{D(\omega)+1}},
+\]
+as required.
+\end{proof}
+
+\begin{corollary}[Admissible Division Words Are Realizable]
+\label{cor:admissible-words-realizable}
+
+Every admissible division word is realizable.
+\end{corollary}
+
+\begin{proof}
+Let \(\omega\) be admissible. By
+Theorem~\ref{thm:exact-realization-residue-class}, its exact realization
+congruence has a canonical solution
+\[
+r_\omega
+\pmod{2^{D(\omega)+1}}.
+\]
+Taking \(x=r_\omega\) gives
+\[
+x\equiv r_\omega
+\pmod{2^{D(\omega)+1}},
+\]
+and hence \(x\) realizes \(\omega\).
+\end{proof}
+
+\begin{remark}
+Admissibility was defined only as an intrinsic positivity condition on a
+finite nonempty division word. We have now proved, rather than assumed,
+that this condition is sufficient for finite realizability.
+
+Since \(\omega\) is admissible, its first division count is positive.
+Therefore any realizer of \(\omega\), and in particular \(r_\omega\), is
+odd and positive.
+
+\begin{center}
+\fbox{%
+\parbox{0.85\textwidth}{%
+\centering
+Every finite nonempty sequence of positive division counts
+occurs along some fully accelerated Collatz trajectory.
+}}
+\end{center}
+
+Moreover, its complete realization set is exactly one residue class
+modulo
+\[
+2^{D(\omega)+1}.
+\]
+
+The next subsection studies how these exact realization classes behave when
+division words are extended through their prefixes.
+\end{remark}
+
+% ------------------------------------------------------------
+\subsection{Nested Structure of Realization Classes}
+% ------------------------------------------------------------
+
+For a division word \(\omega\), recall its realization set
+\[
+R_\omega
+=
+\{x\in\mathbb N : x\text{ realizes }\omega\}.
+\]
+
+If \(\omega\) is admissible, the preceding results show that \(R_\omega\)
+is exactly one residue class modulo \(2^{D(\omega)+1}\):
+\[
+R_\omega
+=
+\left\{
+x\in\mathbb N :
+x\equiv r_\omega
+\pmod{2^{D(\omega)+1}}
+\right\},
+\]
+where
+\[
+0\le r_\omega<2^{D(\omega)+1}
+\]
+is uniquely determined.
+
+We now show that the prefix structure of division words induces a
+corresponding nested-or-disjoint structure on their realization sets.
+
+\begin{lemma}[Common Realizations Force Prefix Comparability]
+\label{lem:common-realization-prefix}
+
+Let \(\omega\) and \(\eta\) be division words. If some \(x\in\mathbb N\)
+realizes both \(\omega\) and \(\eta\), then one word is a prefix of the
+other.
+
+More precisely, if
+\[
+|\omega|\le|\eta|,
+\]
+then
+\[
+\omega=\eta_{\le|\omega|},
+\]
+where \(\eta_{\le|\omega|}\) denotes the prefix of \(\eta\) of length
+\(|\omega|\).
+\end{lemma}
+
+\begin{proof}
+Suppose that \(x\) realizes both \(\omega\) and \(\eta\), and assume
+\[
+|\omega|\le|\eta|.
+\]
+Since realization of a word implies realization of each of its prefixes,
+\(x\) realizes the prefix
+\[
+\eta_{\le|\omega|}.
+\]
+
+Both \(\omega\) and \(\eta_{\le|\omega|}\) therefore have length
+\(|\omega|\) and are realized by the same starting value \(x\). But a
+fixed starting value determines a unique division word of each finite
+length. Hence
+\[
+\omega=\eta_{\le|\omega|}.
+\]
+
+Interchanging the roles of \(\omega\) and \(\eta\) gives the opposite
+case. Thus any two division words having a common realization are
+prefix-comparable.
+\end{proof}
+
+\begin{theorem}[Nested-or-Disjoint Realization Classes]
+\label{thm:realization-classes-nested-disjoint}
+
+Let \(\omega\) and \(\eta\) be division words. Then at least one of
+\[
+R_\eta\subseteq R_\omega,
+\qquad
+R_\omega\subseteq R_\eta,
+\qquad
+R_\omega\cap R_\eta=\varnothing
+\]
+holds.
+
+Equivalently, two realization sets are either nested or disjoint; they
+cannot partially overlap.
+\end{theorem}
+
+\begin{proof}
+If
+\[
+R_\omega\cap R_\eta=\varnothing,
+\]
+there is nothing to prove.
+
+Otherwise choose
+\[
+x\in R_\omega\cap R_\eta.
+\]
+Then \(x\) realizes both \(\omega\) and \(\eta\), so by
+Lemma~\ref{lem:common-realization-prefix} the two words are
+prefix-comparable.
+
+If \(\omega\) is a prefix of \(\eta\), then every natural number realizing
+\(\eta\) also realizes \(\omega\). Hence
+\[
+R_\eta\subseteq R_\omega.
+\]
+
+Similarly, if \(\eta\) is a prefix of \(\omega\), then
+\[
+R_\omega\subseteq R_\eta.
+\]
+
+Thus any two realization sets are nested or disjoint.
+\end{proof}
+
+\begin{corollary}[Nested-or-Disjoint Exact Residue Classes]
+\label{cor:exact-residue-classes-nested-disjoint}
+
+Let \(\omega\) and \(\eta\) be admissible division words, with exact
+realization residues
+\[
+r_\omega
+\pmod{2^{D(\omega)+1}}
+\qquad\text{and}\qquad
+r_\eta
+\pmod{2^{D(\eta)+1}}.
+\]
+Then their corresponding exact residue classes are either disjoint or one
+is contained in the other.
+
+Moreover, if \(\eta\) extends \(\omega\), then
+\[
+r_\eta
+\equiv
+r_\omega
+\pmod{2^{D(\omega)+1}}.
+\]
+The analogous statement holds with \(\omega\) and \(\eta\) interchanged.
+\end{corollary}
+
+\begin{proof}
+For admissible division words, the exact residue classes are precisely
+their realization sets:
+\[
+x\equiv r_\omega\pmod{2^{D(\omega)+1}}
+\quad\Longleftrightarrow\quad
+x\in R_\omega,
+\]
+and similarly for \(\eta\).
+
+The nested-or-disjoint conclusion therefore follows immediately from
+Theorem~\ref{thm:realization-classes-nested-disjoint}.
+
+Now suppose that \(\eta\) extends \(\omega\). The canonical representative
+\(r_\eta\) belongs to its own exact realization class, and hence realizes
+\(\eta\). It therefore realizes the prefix \(\omega\), so the residue
+characterization of \(R_\omega\) gives
+\[
+r_\eta
+\equiv
+r_\omega
+\pmod{2^{D(\omega)+1}}.
+\]
+\end{proof}
+
+\begin{corollary}[Successive Prefix Refinement]
+\label{cor:successive-prefix-refinement}
+
+Let
+\[
+\omega=(d_0,\dots,d_{m-1})
+\]
+be admissible, and let
+\[
+\omega_j=(d_0,\dots,d_{j-1})
+\]
+for \(1\le j\le m\). Then, whenever \(1\le j<m\),
+\[
+R_{\omega_{j+1}}\subseteq R_{\omega_j}
+\]
+and
+\[
+r_{\omega_{j+1}}
+\equiv
+r_{\omega_j}
+\pmod{2^{D(\omega_j)+1}}.
+\]
+Thus each additional exact valuation condition refines the realization
+class of the preceding prefix.
+\end{corollary}
+
+\begin{proof}
+Since \(\omega\) is admissible and \(1\le j<m\), both
+\(\omega_j\) and \(\omega_{j+1}\) are nonempty admissible prefixes of
+\(\omega\). Moreover, \(\omega_{j+1}\) extends \(\omega_j\).
+Hence both conclusions follow from the preceding corollary.
+\end{proof}
+
+\begin{remark}
+The realization classes therefore form a laminar family: extension of a
+division word produces a nested refinement of its realization class,
+whereas prefix-incomparable words have disjoint realization sets.
+
+For admissible words these sets are not merely abstract dynamical classes;
+each is a single dyadic residue class
+\[
+x\equiv r_\omega
+\pmod{2^{D(\omega)+1}}.
+\]
+The next section develops the geometry and density of such dyadic residue
+classes systematically by introducing them as cylinders.
+\end{remark}
+
+
+% ============================================================
+\section{Cylinder Geometry of Division Words}
+\label{sec:cylinder-geometry}
+% ============================================================
+
+Finite admissible division words determine exact \(2\)-adic realization
+classes. For each admissible division word \(\omega\), exact realizability
+determines a unique residue class modulo \(2^{D(\omega)+1}\), with a unique
+canonical representative
+\[
+0\le r_\omega<2^{D(\omega)+1}.
+\]
+
+These residue classes naturally belong to the more general arithmetic
+geometry of congruence classes modulo powers of \(2\). We first develop that
+dyadic structure independently of the Collatz dynamics and then specialize
+it to the realization classes associated with division words.
+
+% ------------------------------------------------------------
+\subsection{Dyadic Cylinders and Division-Word Cylinders}
+% ------------------------------------------------------------
+
+\begin{definition}[Dyadic Cylinder]
+For \(r,k\in\mathbb N\), define the dyadic cylinder
+\[
+C(r,k)
+:=
+\left\{
+x\in\mathbb N :
+x\equiv r\pmod{2^k}
+\right\}.
+\]
+\end{definition}
+
+\begin{remark}
+The residue \(r\) need not be canonical in this definition. When uniqueness
+of the representative is required, we shall impose
+\[
+0\le r<2^k.
+\]
+The definition itself is purely arithmetic and is independent of the
+Collatz map.
+\end{remark}
+
+\begin{definition}[Cylinder of a Division Word]
+Let \(\omega\) be an admissible division word, and let \(r_\omega\) be its
+canonical exact realization residue. Define
+\[
+C_\omega
+:=
+C\bigl(r_\omega,D(\omega)+1\bigr).
+\]
+Equivalently,
+\[
+C_\omega
+=
+\left\{
+x\in\mathbb N :
+x\equiv r_\omega
+\pmod{2^{D(\omega)+1}}
+\right\}.
+\]
+By Theorem~\ref{thm:exact-realization-residue-class},
+\[
+C_\omega
+=
+R_\omega
+=
+\{x\in\mathbb N:x\text{ realizes }\omega\}.
+\]
+\end{definition}
+
+% ------------------------------------------------------------
+\subsection{Geometry of Dyadic Cylinders}
+% ------------------------------------------------------------
+
+The basic geometry of dyadic cylinders is independent of the Collatz map.
+It follows solely from the divisibility relation among powers of \(2\).
+
+\begin{proposition}[Dyadic Cylinder Containment]
+\label{prop:dyadic-cylinder-containment}
+
+Let \(r,s,k,\ell\in\mathbb N\) with \(k\le\ell\). Then
+\[
+C(s,\ell)\subseteq C(r,k)
+\]
+if and only if
+\[
+s\equiv r\pmod{2^k}.
+\]
+\end{proposition}
+
+\begin{proof}
+Suppose first that
+\[
+C(s,\ell)\subseteq C(r,k).
+\]
+Since \(s\in C(s,\ell)\), the inclusion implies
+\[
+s\in C(r,k),
+\]
+and therefore
+\[
+s\equiv r\pmod{2^k}.
+\]
+
+Conversely, suppose
+\[
+s\equiv r\pmod{2^k},
+\]
+and let \(x\in C(s,\ell)\). Then
+\[
+x\equiv s\pmod{2^\ell}.
+\]
+Since \(k\le\ell\),
+\[
+2^k\mid2^\ell,
+\]
+so reduction modulo \(2^k\) gives
+\[
+x\equiv s\pmod{2^k}.
+\]
+Combining this with
+\[
+s\equiv r\pmod{2^k}
+\]
+yields
+\[
+x\equiv r\pmod{2^k}.
+\]
+Hence \(x\in C(r,k)\), proving
+\[
+C(s,\ell)\subseteq C(r,k).
+\]
+\end{proof}
+
+\begin{corollary}[Nested-or-Disjoint Dyadic Cylinders]
+\label{cor:dyadic-cylinders-nested-disjoint}
+
+Any two dyadic cylinders are either nested or disjoint. More precisely,
+for arbitrary \(r,s,k,\ell\in\mathbb N\), at least one of
+\[
+C(s,\ell)\subseteq C(r,k),
+\qquad
+C(r,k)\subseteq C(s,\ell),
+\qquad
+C(r,k)\cap C(s,\ell)=\varnothing
+\]
+holds.
+\end{corollary}
+
+\begin{proof}
+Assume without loss of generality that \(k\le\ell\). If the two cylinders
+are disjoint, there is nothing to prove.
+
+Otherwise choose
+\[
+x\in C(r,k)\cap C(s,\ell).
+\]
+Then
+\[
+x\equiv r\pmod{2^k}
+\]
+and, after reducing the second congruence modulo \(2^k\),
+\[
+x\equiv s\pmod{2^k}.
+\]
+Hence
+\[
+s\equiv r\pmod{2^k}.
+\]
+Proposition~\ref{prop:dyadic-cylinder-containment} therefore gives
+\[
+C(s,\ell)\subseteq C(r,k).
+\]
+The case \(\ell\le k\) is symmetric.
+\end{proof}
+
+\begin{theorem}[Binary Refinement of a Dyadic Cylinder]
+\label{thm:dyadic-cylinder-binary-refinement}
+
+Let
+\[
+0\le r<2^k.
+\]
+Then
+\[
+C(r,k)
+=
+C(r,k+1)
+\sqcup
+C(r+2^k,k+1),
+\]
+where \(\sqcup\) denotes disjoint union.
+\end{theorem}
+
+\begin{proof}
+A residue modulo \(2^{k+1}\) reducing to \(r\) modulo \(2^k\) has exactly
+one of the two forms
+\[
+r
+\qquad\text{or}\qquad
+r+2^k.
+\]
+Therefore every element of \(C(r,k)\) lies in exactly one of
+\[
+C(r,k+1)
+\qquad\text{and}\qquad
+C(r+2^k,k+1).
+\]
+
+Conversely, both of these residues are congruent to \(r\) modulo \(2^k\),
+so both child cylinders are contained in \(C(r,k)\).
+
+The two children are disjoint because
+\[
+r\not\equiv r+2^k\pmod{2^{k+1}}.
+\]
+Hence their union is disjoint and equals the parent cylinder.
+\end{proof}
+
+\begin{remark}
+Thus the complete family of dyadic cylinders forms a binary refinement
+geometry. Passing from depth \(k\) to depth \(k+1\) resolves one additional
+binary residue bit, and any two cylinders are either nested or disjoint.
+
+The realization cylinders introduced above inherit this arithmetic geometry
+after the specialization
+\[
+r=r_\omega,
+\qquad
+k=D(\omega)+1.
+\]
+\end{remark}
+
+% ------------------------------------------------------------
+\subsection{Counting and Natural Density}
+% ------------------------------------------------------------
+
+For a canonical dyadic cylinder \(C(r,k)\), define
+\[
+A_{r,k}(N)
+:=
+\#\{x\in\mathbb N:0\le x<N,\ x\in C(r,k)\}.
+\]
+
+With the convention \(0\in\mathbb N\), this definition also treats the
+zero residue class uniformly. In particular, the initial block
+\[
+[0,2^k)
+\]
+contains exactly one representative of every residue class modulo \(2^k\),
+including \(0\). Cylinder membership is periodic with period \(2^k\).
+Moreover, if
+\[
+0\le r<2^k,
+\]
+then every complete block of \(2^k\) consecutive natural numbers contains
+exactly one member of \(C(r,k)\).
+
+\begin{theorem}[Dyadic Cylinder Counting Bounds]
+\label{thm:dyadic-cylinder-counting}
+
+Let
+\[
+0\le r<2^k.
+\]
+Then for every \(N\in\mathbb N\),
+\[
+\left\lfloor\frac{N}{2^k}\right\rfloor
+\le
+A_{r,k}(N)
+\le
+\left\lfloor\frac{N}{2^k}\right\rfloor+1.
+\]
+\end{theorem}
+
+\begin{proof}
+Write
+\[
+N=q\,2^k+s,
+\qquad
+0\le s<2^k.
+\]
+The first \(q\,2^k\) natural numbers consist of \(q\) complete periods of
+length \(2^k\), each containing exactly one member of the cylinder.
+They therefore contribute exactly \(q\) points.
+
+The remaining interval has length \(s<2^k\), so it contains at most one
+additional member of the same residue class. Hence
+\[
+q\le A_{r,k}(N)\le q+1.
+\]
+Since
+\[
+q=\left\lfloor\frac{N}{2^k}\right\rfloor,
+\]
+the result follows.
+\end{proof}
+
+\begin{theorem}[Natural Density of a Dyadic Cylinder]
+\label{thm:dyadic-cylinder-density}
+
+Every canonical dyadic cylinder \(C(r,k)\) has ordinary natural density
+\[
+2^{-k}.
+\]
+More precisely, for \(N>0\),
+\[
+\left|
+\frac{A_{r,k}(N)}{N}
+-
+\frac{1}{2^k}
+\right|
+\le
+\frac{1}{N},
+\]
+and therefore
+\[
+\lim_{N\to\infty}
+\frac{A_{r,k}(N)}{N}
+=
+\frac{1}{2^k}.
+\]
+\end{theorem}
+
+\begin{proof}
+Write
+\[
+N=q\,2^k+s,
+\qquad
+0\le s<2^k.
+\]
+By Theorem~\ref{thm:dyadic-cylinder-counting},
+\[
+A_{r,k}(N)\in\{q,q+1\}.
+\]
+In either case,
+\[
+\left|
+A_{r,k}(N)-\frac{N}{2^k}
+\right|
+\le1.
+\]
+Dividing by \(N>0\) gives
+\[
+\left|
+\frac{A_{r,k}(N)}{N}
+-
+\frac{1}{2^k}
+\right|
+\le
+\frac1N.
+\]
+Since \(1/N\to0\), the stated density follows.
+\end{proof}
+
+\begin{corollary}[Density of a Realization Cylinder]
+\label{cor:realization-cylinder-density}
+
+Let \(\omega\) be an admissible division word. Then
+\[
+C_\omega
+=
+C\bigl(r_\omega,D(\omega)+1\bigr)
+\]
+has ordinary natural density
+\[
+\boxed{
+\operatorname{dens}(C_\omega)
+=
+2^{-(D(\omega)+1)}.
+}
+\]
+\end{corollary}
+
+\begin{proof}
+The canonical realization residue satisfies
+\[
+0\le r_\omega<2^{D(\omega)+1}.
+\]
+Apply Theorem~\ref{thm:dyadic-cylinder-density} with
+\[
+r=r_\omega,
+\qquad
+k=D(\omega)+1.
+\]
+\end{proof}
+
+% ------------------------------------------------------------
+\subsection{Realization Cylinder Forest}
+% ------------------------------------------------------------
+
+We now specialize the generic dyadic geometry to the cylinders determined
+by admissible division words.
+
+Write
+\[
+\omega\preceq\eta
+\]
+when \(\omega\) is a prefix of \(\eta\).
+
+\begin{lemma}[Proper Prefixes Increase Dyadic Depth]
+\label{lem:proper-prefix-division-count}
+
+Let \(\omega\) be a proper prefix of an admissible division word \(\eta\).
+Then
+\[
+D(\omega)<D(\eta).
+\]
+\end{lemma}
+
+\begin{proof}
+Since \(\omega\) is a proper prefix of \(\eta\), write
+\[
+\eta=\omega\xi
+\]
+with \(\xi\) nonempty. Every entry of \(\eta\), and hence every entry of
+\(\xi\), is positive. Therefore
+\[
+D(\xi)>0.
+\]
+By additivity of total division count under concatenation,
+\[
+D(\eta)=D(\omega)+D(\xi),
+\]
+and hence
+\[
+D(\omega)<D(\eta).
+\]
+\end{proof}
+
+\begin{theorem}[Exact Cylinder Inclusion Criterion]
+\label{thm:cylinder-inclusion}
+
+Let \(\omega\) and \(\eta\) be admissible division words. Then
+\[
+C_\eta\subseteq C_\omega
+\]
+if and only if
+\[
+\omega\preceq\eta.
+\]
+Equivalently,
+\[
+\boxed{
+\omega\preceq\eta
+\quad\Longleftrightarrow\quad
+C_\eta\subseteq C_\omega.
+}
+\]
+\end{theorem}
+
+\begin{proof}
+Suppose first that
+\[
+C_\eta\subseteq C_\omega.
+\]
+Since
+\[
+r_\eta\in C_\eta,
+\]
+the assumed inclusion gives
+\[
+r_\eta\in C_\omega.
+\]
+Thus \(r_\eta\) realizes both \(\eta\) and \(\omega\). By
+Lemma~\ref{lem:common-realization-prefix}, the two words are
+prefix-comparable.
+
+If \(\omega\preceq\eta\), we are done. Suppose instead that \(\eta\) is a
+proper prefix of \(\omega\). By
+Lemma~\ref{lem:proper-prefix-division-count},
+\[
+D(\eta)<D(\omega).
+\]
+
+Now
+\[
+r_\eta+2^{D(\eta)+1}
+\]
+belongs to the same cylinder \(C_\eta\) as \(r_\eta\). By the assumed
+inclusion, both numbers therefore belong to \(C_\omega\). Since
+\(C_\omega\) is a single residue class modulo \(2^{D(\omega)+1}\), the two
+numbers are congruent to one another modulo \(2^{D(\omega)+1}\). Hence
+\[
+2^{D(\omega)+1}
+\mid
+2^{D(\eta)+1}.
+\]
+But
+\[
+D(\eta)<D(\omega),
+\]
+and therefore
+\[
+0<2^{D(\eta)+1}<2^{D(\omega)+1},
+\]
+making this divisibility impossible. Thus the reverse prefix relation
+cannot be proper, and consequently
+\[
+\omega\preceq\eta.
+\]
+
+Conversely, suppose
+\[
+\omega\preceq\eta.
+\]
+Every natural number realizing \(\eta\) also realizes each prefix of
+\(\eta\), and hence realizes \(\omega\). Since the cylinders are exactly
+the corresponding realization sets,
+\[
+C_\eta\subseteq C_\omega.
+\]
+\end{proof}
+
+\begin{corollary}[Forest Consequences]
+\label{cor:cylinder-forest-consequences}
+
+Let \(\omega\) and \(\eta\) be admissible division words.
+
+\begin{enumerate}
+\item
+\[
+C_\omega=C_\eta
+\quad\Longleftrightarrow\quad
+\omega=\eta.
+\]
+
+\item
+\[
+C_\eta\subsetneq C_\omega
+\quad\Longleftrightarrow\quad
+\omega\text{ is a proper prefix of }\eta.
+\]
+
+\item If neither word is a prefix of the other, then
+\[
+C_\omega\cap C_\eta=\varnothing.
+\]
+
+\item Distinct admissible words of equal length have disjoint cylinders.
+\end{enumerate}
+\end{corollary}
+
+\begin{proof}
+The first two statements follow immediately from
+Theorem~\ref{thm:cylinder-inclusion}.
+
+For the third, generic dyadic cylinders are nested or disjoint. If
+\(C_\omega\) and \(C_\eta\) were not disjoint, one would be contained in
+the other, and Theorem~\ref{thm:cylinder-inclusion} would force one word
+to be a prefix of the other.
+
+The fourth statement follows because two distinct words of equal length
+cannot be prefix-comparable.
+\end{proof}
+
+\begin{remark}[Forest Geometry]
+Theorem~\ref{thm:cylinder-inclusion} identifies symbolic ancestry exactly
+with arithmetic containment, with the order reversed:
+\[
+\omega\preceq\eta
+\quad\Longleftrightarrow\quad
+C_\eta\subseteq C_\omega.
+\]
+
+Since admissible division words are nonempty, there is no empty-word root.
+The length-one admissible words therefore form the roots of a family of
+disjoint prefix trees, giving a natural realization-cylinder forest.
+
+An edge of the symbolic forest appends one additional division count.
+Because that division count may exceed \(1\), such an edge need not
+correspond to a single binary dyadic refinement step: it may descend
+several dyadic levels at once. Nevertheless every proper symbolic
+descendant determines a strict arithmetic refinement to a cylinder of
+strictly greater dyadic depth.
+
+Thus the realization forest is embedded in the universal binary geometry
+of dyadic cylinders, with its symbolic prefix order represented exactly
+by cylinder containment.
+\end{remark}
+
+
+% ============================================================
+\section{Affine Contraction and Descent Cylinders}
+\label{sec:affine-contraction-descent}
+% ============================================================
+
+The preceding sections separated three distinct structures associated with
+a division word: its formal affine map, its exact realization class, and
+the dyadic cylinder geometry of that class. We now connect the affine
+slope to actual descent along realized trajectories.
+
+Recall that
+\[
+F_\omega(x)
+=
+\frac{3^{|\omega|}x+c(\omega)}
+     {2^{D(\omega)}}
+\]
+has affine slope
+\[
+\lambda_\omega
+=
+\frac{3^{|\omega|}}{2^{D(\omega)}}.
+\]
+The dyadic--ternary threshold established earlier gives
+\[
+\lambda_\omega<1
+\quad\Longleftrightarrow\quad
+D(\omega)\ge B(|\omega|).
+\]
+
+A subunit slope alone does not imply
+\[
+F_\omega(x)<x,
+\]
+because the affine constant \(c(\omega)\) is positive. The key point is
+that this obstruction is finite: once the initial value is sufficiently
+large, the negative contribution from the subunit linear coefficient
+dominates the fixed affine term.
+
+% ------------------------------------------------------------
+\subsection{Affine Contraction and Pointwise Descent}
+% ------------------------------------------------------------
+
+\begin{proposition}[Descent Threshold for Subunit Slope]
+\label{prop:affine-descent-threshold}
+
+Let \(\omega\) be a nonempty division word satisfying
+\[
+2^{D(\omega)}>3^{|\omega|}.
+\]
+Then for every \(x\in\mathbb Q\),
+\[
+F_\omega(x)<x
+\]
+if and only if
+\[
+\bigl(2^{D(\omega)}-3^{|\omega|}\bigr)x
+>
+c(\omega).
+\]
+
+Equivalently,
+\[
+F_\omega(x)<x
+\quad\Longleftrightarrow\quad
+x>
+\frac{c(\omega)}
+     {2^{D(\omega)}-3^{|\omega|}}.
+\]
+\end{proposition}
+
+\begin{proof}
+Starting from
+\[
+F_\omega(x)
+=
+\frac{3^{|\omega|}x+c(\omega)}
+     {2^{D(\omega)}},
+\]
+and using \(2^{D(\omega)}>0\), we have
+\[
+F_\omega(x)<x
+\]
+if and only if
+\[
+3^{|\omega|}x+c(\omega)
+<
+2^{D(\omega)}x.
+\]
+Rearranging gives
+\[
+c(\omega)
+<
+\bigl(2^{D(\omega)}-3^{|\omega|}\bigr)x.
+\]
+
+Since
+\[
+2^{D(\omega)}-3^{|\omega|}>0,
+\]
+division by this positive quantity yields the equivalent threshold
+\[
+x>
+\frac{c(\omega)}
+     {2^{D(\omega)}-3^{|\omega|}}.
+\]
+\end{proof}
+
+\begin{corollary}[Eventual Descent on a Realization Cylinder]
+\label{cor:eventual-descent-on-cylinder}
+
+Let \(\omega\) be an admissible division word with
+\[
+\lambda_\omega<1.
+\]
+Then all sufficiently large \(x\in C_\omega\) satisfy
+\[
+f^{|\omega|}(x)<x.
+\]
+Consequently, only finitely many members of \(C_\omega\) can fail to
+lie below their starting value at the endpoint of the trajectory segment
+encoded by \(\omega\).
+\end{corollary}
+
+\begin{proof}
+If \(x\in C_\omega\), then \(x\) realizes the admissible word
+\(\omega\). Hence \(x\) is odd and positive, so the iterates
+\(f^i(x)\) are genuine fully accelerated Collatz iterates. Moreover,
+\[
+F_\omega(x)=f^{|\omega|}(x).
+\]
+Since \(\lambda_\omega<1\),
+\[
+2^{D(\omega)}>3^{|\omega|}.
+\]
+By Proposition~\ref{prop:affine-descent-threshold},
+\[
+F_\omega(x)<x
+\]
+for every
+\[
+x>
+\frac{c(\omega)}
+     {2^{D(\omega)}-3^{|\omega|}}.
+\]
+Only finitely many natural numbers lie below this fixed bound, so only
+finitely many members of \(C_\omega\) can fail the stated descent
+inequality.
+\end{proof}
+
+\begin{remark}
+This is the precise distinction between affine slope contraction and
+pointwise descent.
+
+The condition
+\[
+\lambda_\omega<1
+\]
+depends only on the multiplicative balance
+\[
+3^{|\omega|}
+\quad\text{versus}\quad
+2^{D(\omega)}.
+\]
+Pointwise descent additionally depends on the affine constant
+\(c(\omega)\). But for a fixed subunit-slope word, that constant contributes
+only the finite threshold
+\[
+\frac{c(\omega)}
+     {2^{D(\omega)}-3^{|\omega|}}.
+\]
+
+Thus the affine term can delay descent for finitely many small realizations,
+but it cannot alter the asymptotic behavior of the realization cylinder.
+The next subsection makes this density statement precise.
+\end{remark}
+
+% ------------------------------------------------------------
+\subsection{Asymptotic Descent Cylinders}
+% ------------------------------------------------------------
+
+Let \(\omega\) be an admissible division word with
+\[
+\lambda_\omega<1.
+\]
+Define its descending realization set by
+\[
+C_\omega^\downarrow
+:=
+\left\{
+x\in C_\omega :
+f^{|\omega|}(x)<x
+\right\}.
+\]
+Since every \(x\in C_\omega\) realizes \(\omega\),
+\[
+f^{|\omega|}(x)=F_\omega(x),
+\]
+and hence equivalently
+\[
+C_\omega^\downarrow
+=
+\left\{
+x\in C_\omega :
+F_\omega(x)<x
+\right\}.
+\]
+
+Let
+\[
+E_\omega
+:=
+C_\omega\setminus C_\omega^\downarrow
+\]
+denote the corresponding set of non-descending realizations.
+
+\begin{lemma}[Finite Affine Exceptional Set]
+\label{lem:finite-affine-exceptional-set}
+
+Let \(\omega\) be admissible and satisfy
+\[
+\lambda_\omega<1.
+\]
+Then every \(x\in E_\omega\) satisfies
+\[
+\bigl(2^{D(\omega)}-3^{|\omega|}\bigr)x
+\le
+c(\omega).
+\]
+In particular,
+\[
+x\le c(\omega),
+\]
+so \(E_\omega\) is finite.
+\end{lemma}
+
+\begin{proof}
+If \(x\in E_\omega\), then
+\[
+F_\omega(x)\ge x.
+\]
+By Proposition~\ref{prop:affine-descent-threshold}, this is equivalent to
+\[
+\bigl(2^{D(\omega)}-3^{|\omega|}\bigr)x
+\le
+c(\omega).
+\]
+
+Since \(\lambda_\omega<1\),
+\[
+2^{D(\omega)}-3^{|\omega|}>0.
+\]
+The difference is a positive integer, and therefore at least \(1\). Hence
+\[
+x
+\le
+\bigl(2^{D(\omega)}-3^{|\omega|}\bigr)x
+\le
+c(\omega).
+\]
+Thus
+\[
+E_\omega
+\subseteq
+\{0,1,\dots,c(\omega)\},
+\]
+and \(E_\omega\) is finite.
+\end{proof}
+
+\begin{theorem}[Density Preservation under Descent]
+\label{thm:density-preservation-eventual-descent}
+
+Let \(\omega\) be an admissible division word satisfying
+\[
+\lambda_\omega<1.
+\]
+Then
+\[
+\operatorname{dens}(C_\omega^\downarrow)
+=
+\operatorname{dens}(C_\omega)
+=
+2^{-(D(\omega)+1)}.
+\]
+\end{theorem}
+
+\begin{proof}
+By Corollary~\ref{cor:realization-cylinder-density},
+\[
+\operatorname{dens}(C_\omega)
+=
+2^{-(D(\omega)+1)}.
+\]
+
+By Lemma~\ref{lem:finite-affine-exceptional-set}, the exceptional set
+\(E_\omega\) is finite. Hence
+\[
+\frac{\#(E_\omega\cap[0,N))}{N}
+\longrightarrow0.
+\]
+
+Since
+\[
+C_\omega
+=
+C_\omega^\downarrow
+\sqcup
+E_\omega,
+\]
+for every \(N\),
+\[
+\#(C_\omega\cap[0,N))
+=
+\#(C_\omega^\downarrow\cap[0,N))
++
+\#(E_\omega\cap[0,N)).
+\]
+Dividing by \(N\) and passing to the limit gives
+\[
+\operatorname{dens}(C_\omega^\downarrow)
+=
+\operatorname{dens}(C_\omega)
+=
+2^{-(D(\omega)+1)}.
+\]
+\end{proof}
+
+\begin{remark}
+This obstruction is asymptotically negligible: the non-descending
+exceptional set \(E_\omega\) is finite, so removing it does not change
+natural density:
+\[
+\operatorname{dens}(C_\omega^\downarrow)
+=
+\operatorname{dens}(C_\omega).
+\]
+
+Thus every admissible subunit-slope cylinder contributes its full dyadic
+density
+\[
+2^{-(D(\omega)+1)}
+\]
+to accelerated descent, up to a finite exceptional set.
+\end{remark}
+
+\begin{remark}[From Local Descent to Global Residual Structure]
+The preceding theorem is a statement about a fixed admissible division word.
+Whenever
+\[
+\lambda_\omega<1,
+\]
+the corresponding realization cylinder contributes its full natural density
+to accelerated descent, up to a finite exceptional set.
+
+This is not yet a global density statement. There are infinitely many
+admissible division words at every positive symbolic length, so the argument
+cannot proceed by counting all admissible cylinders and comparing their
+number with the density of a typical cylinder.
+
+Instead, the global argument must keep track of those trajectories whose
+prefixes have not yet entered the subunit-slope regime. The next section
+introduces the resulting first-contraction and residual cylinder structure.
+Its purpose is to partition the cylinder forest according to the first prefix
+at which affine contraction occurs and to estimate the dyadic mass that
+remains unresolved after successive refinements.
+\end{remark}
+
+
+% ============================================================
+\section{First-Contraction and the Residual Forest}
+\label{sec:residual-forest}
+% ============================================================
+
+The preceding section showed that an admissible division word with subunit
+affine slope contributes its full realization-cylinder density to
+accelerated descent, apart from finitely many exceptional initial values.
+To obtain a global statement, it remains to organize trajectories according
+to the first prefix at which the affine slope becomes strictly less than \(1\).
+
+This requires a restricted symbolic structure. The full family of admissible
+division words is infinite at every positive word length and therefore does
+not provide a finite horizontal decomposition. Instead, we retain only those
+prefixes whose total division count has not yet reached the dyadic threshold
+\(B(j)\). These prefixes form the \emph{residual forest}.
+
+For a division word \(\omega\) and \(1\le j\le|\omega|\), write
+\[
+\omega_{\le j}
+\]
+for its prefix of length \(j\). Recall that
+\[
+B(j)
+\]
+is the least integer \(k\) satisfying
+\[
+2^k>3^j.
+\]
+Thus
+\[
+D(\omega_{\le j})\ge B(j)
+\]
+is equivalent to the affine slope of the prefix \(\omega_{\le j}\) being
+strictly less than \(1\).
+
+% ------------------------------------------------------------
+\subsection{First-Contraction and Residual Words}
+% ------------------------------------------------------------
+
+\begin{definition}[Residual Word]
+\label{def:residual-word}
+
+An admissible division word \(\omega\) is called \emph{residual} if every
+nonempty prefix has total division count strictly below the dyadic threshold:
+\[
+D(\omega_{\le j})<B(j),
+\qquad
+1\le j\le|\omega|.
+\]
+Equivalently, every nonempty prefix has affine slope strictly greater than
+\(1\).
+\end{definition}
+
+\begin{definition}[First-Contraction Word]
+\label{def:first-contraction-word}
+
+An admissible division word \(\omega\) of length \(m\) is called a
+\emph{first-contraction word} if
+\[
+D(\omega)\ge B(m),
+\]
+while every proper nonempty prefix remains residual:
+\[
+D(\omega_{\le j})<B(j),
+\qquad
+1\le j<m.
+\]
+Thus the total division count of \(\omega\) reaches the dyadic threshold for
+the first time at its terminal symbolic position.
+\end{definition}
+
+\begin{lemma}[Residual Prefix Closure]
+\label{lem:residual-prefix-closure}
+
+Every nonempty prefix of a residual word is residual.
+\end{lemma}
+
+\begin{proof}
+Let \(\omega\) be residual and let
+\[
+\eta=\omega_{\le j},
+\qquad
+1\le j\le|\omega|.
+\]
+Admissibility is inherited by nonempty prefixes. Moreover, for every
+\(1\le k\le j\),
+\[
+\eta_{\le k}=\omega_{\le k}.
+\]
+Since \(\omega\) is residual,
+\[
+D(\omega_{\le k})<B(k).
+\]
+Hence
+\[
+D(\eta_{\le k})<B(k)
+\]
+for every nonempty prefix of \(\eta\), so \(\eta\) is residual.
+\end{proof}
+
+\begin{proposition}[First-Contraction Antichain]
+\label{prop:first-contraction-antichain}
+
+Distinct first-contraction words are prefix-incomparable. Consequently,
+their realization cylinders are pairwise disjoint, even when the words have
+different symbolic lengths.
+\end{proposition}
+
+\begin{proof}
+Suppose that distinct first-contraction words \(\omega\) and \(\eta\)
+satisfied
+\[
+\omega\prec\eta,
+\]
+where \(\prec\) denotes the proper-prefix relation.
+
+Since \(\omega\) is a first-contraction word,
+\[
+D(\omega)\ge B(|\omega|).
+\]
+But \(\omega\) is a proper prefix of the first-contraction word \(\eta\), so
+the defining residual-prefix condition for \(\eta\) requires
+\[
+D(\omega)<B(|\omega|),
+\]
+a contradiction.
+
+Thus neither word can be a proper prefix of the other. By the
+symbolic--arithmetic correspondence for realization cylinders,
+prefix-incomparable division words have disjoint cylinders.
+\end{proof}
+
+\begin{remark}
+The antichain property is important, but it does not by itself license an
+infinite sum of cylinder densities. The family of first-contraction words
+at a fixed symbolic length is generally infinite, since the total division
+count at the terminal depth may exceed the dyadic threshold at that length
+by an arbitrarily large amount.
+
+The finite objects used below are instead the \emph{residual levels}.
+\end{remark}
+
+% ------------------------------------------------------------
+\subsection{Residual Levels and Exit Layers}
+% ------------------------------------------------------------
+
+For \(m\ge1\), define the residual word level
+\[
+\mathcal W_m^{\mathrm{res}}
+:=
+\left\{
+\omega:
+|\omega|=m
+\text{ and }
+\omega\text{ is residual}
+\right\}.
+\]
+
+\begin{proposition}[Finiteness of Residual Levels]
+\label{prop:residual-level-finite}
+
+For every \(m\ge1\), the set
+\[
+\mathcal W_m^{\mathrm{res}}
+\]
+is finite.
+\end{proposition}
+
+\begin{proof}
+If
+\[
+\omega=(d_0,\dots,d_{m-1})
+\in\mathcal W_m^{\mathrm{res}},
+\]
+then residuality at the terminal prefix gives
+\[
+D(\omega)<B(m).
+\]
+Since every \(d_i\) is positive and
+\[
+d_i\le D(\omega),
+\]
+we obtain
+\[
+1\le d_i<B(m)
+\]
+for every \(i\).
+
+Thus every residual word of length \(m\) is a length-\(m\) word over the
+finite alphabet
+\[
+\{1,2,\dots,B(m)-1\}.
+\]
+Only finitely many such words exist.
+\end{proof}
+
+\begin{corollary}[Root of the Residual Forest]
+\label{cor:residual-root}
+
+The first residual level consists of the single word
+\[
+\mathcal W_1^{\mathrm{res}}=\{(1)\}.
+\]
+\end{corollary}
+
+\begin{proof}
+A residual word of length one has the form \((d)\) with \(d\ge1\), while
+residuality requires
+\[
+d<B(1)=2.
+\]
+Hence \(d=1\).
+\end{proof}
+
+The first-contraction words of length one are therefore precisely the
+one-symbol words \((d)\) with \(d\ge2\). Their realizations lie outside the
+initial residual set \(\mathcal R_1\), so the residual-forest decomposition
+below begins with the exit layer \(\mathcal F_2\). The complementary
+length-one population is handled separately in the final descent argument.
+
+For \(m\ge1\), define the residual realization set
+\[
+\mathcal R_m
+:=
+\bigcup_{\omega\in\mathcal W_m^{\mathrm{res}}}
+C_\omega.
+\]
+Thus \(\mathcal R_m\) consists precisely of starting values whose first
+\(m\) division counts remain residual.
+
+\begin{theorem}[Nested Residual Forest]
+\label{thm:residual-levels-nested}
+
+For every \(m\ge1\),
+\[
+\mathcal R_{m+1}\subseteq\mathcal R_m.
+\]
+\end{theorem}
+
+\begin{proof}
+Let \(x\in\mathcal R_{m+1}\). Then \(x\) realizes some residual word
+\(\omega\) of length \(m+1\).
+
+By Lemma~\ref{lem:residual-prefix-closure}, the prefix
+\[
+\omega_{\le m}
+\]
+is residual. Since realization of a word implies realization of each of its
+prefixes, \(x\) realizes \(\omega_{\le m}\). Therefore
+\[
+x\in\mathcal R_m.
+\]
+\end{proof}
+
+The set of starting values whose realized trajectories leave the residual
+forest at the next refinement step is now defined by
+\[
+\mathcal F_{m+1}
+:=
+\mathcal R_m\setminus\mathcal R_{m+1},
+\qquad
+m\ge1.
+\]
+
+\begin{theorem}[Exit Layer Equals First Contraction]
+\label{thm:exit-layer-first-contraction}
+
+For every \(m\ge1\),
+\[
+\mathcal F_{m+1}
+=
+\left\{
+x\in\mathbb N:
+x\text{ realizes a first-contraction word of length }m+1
+\right\}.
+\]
+\end{theorem}
+
+\begin{proof}
+Suppose first that
+\[
+x\in\mathcal F_{m+1}.
+\]
+Then
+\[
+x\in\mathcal R_m
+\qquad\text{but}\qquad
+x\notin\mathcal R_{m+1}.
+\]
+Hence \(x\) realizes a residual word \(\omega\) of length \(m\).
+In particular, \(\omega\) is admissible, so \(x\) is odd and positive.
+
+Let \(\eta\) denote the actual division word of length \(m+1\) generated by
+the trajectory of \(x\). By
+Lemma~\ref{lem:generated-division-words}, \(\eta\) is admissible. Its
+length-\(m\) prefix must equal \(\omega\), because a fixed starting value
+determines a unique realized word of each length.
+
+Therefore every proper nonempty prefix of \(\eta\) is residual. If the full
+word \(\eta\) also satisfied
+\[
+D(\eta)<B(m+1),
+\]
+then \(\eta\) itself would be residual, and \(x\) would belong to
+\(\mathcal R_{m+1}\), contrary to assumption. Hence
+\[
+D(\eta)\ge B(m+1),
+\]
+so \(\eta\) is a first-contraction word.
+
+Conversely, suppose that \(x\) realizes a first-contraction word \(\eta\) of
+length \(m+1\). Its length-\(m\) prefix is residual, so
+\[
+x\in\mathcal R_m.
+\]
+
+If \(x\in\mathcal R_{m+1}\), then \(x\) would also realize some residual word
+\(\rho\) of length \(m+1\). But two words of the same length realized by the
+same starting value must coincide, so
+\[
+\rho=\eta.
+\]
+This is impossible, because \(\rho\) is residual at its terminal depth while
+\(\eta\) reaches the contraction threshold there. Thus
+\[
+x\notin\mathcal R_{m+1},
+\]
+and hence
+\[
+x\in\mathcal F_{m+1}.
+\]
+\end{proof}
+
+\begin{corollary}[Finite-Stage Forest Decomposition]
+\label{cor:residual-forest-decomposition}
+
+For every \(m\ge1\),
+\[
+\boxed{
+\mathcal R_m
+=
+\mathcal F_{m+1}
+\sqcup
+\mathcal R_{m+1}.
+}
+\]
+\end{corollary}
+
+\begin{proof}
+By definition,
+\[
+\mathcal F_{m+1}
+=
+\mathcal R_m\setminus\mathcal R_{m+1},
+\]
+and Theorem~\ref{thm:residual-levels-nested} gives
+\[
+\mathcal R_{m+1}\subseteq\mathcal R_m.
+\]
+The two sets are therefore disjoint and their union is exactly
+\(\mathcal R_m\).
+\end{proof}
+
+\begin{remark}
+This decomposition is the structural conservation law of the residual
+forest. Every trajectory that is residual through depth \(m\) has exactly
+one of two fates at the next symbolic step:
+
+\[
+\text{first contraction at depth }m+1,
+\]
+or
+\[
+\text{continued residual survival through depth }m+1.
+\]
+
+No trajectory is lost and none is counted twice.
+\end{remark}
+
+\begin{definition}[Infinite Residual Set]
+\label{def:infinite-residual-set}
+
+Define
+\[
+\mathcal R_\infty
+:=
+\bigcap_{m\ge1}\mathcal R_m.
+\]
+Thus \(\mathcal R_\infty\) consists of those starting values whose realized
+division-word prefixes remain residual at every finite depth.
+\end{definition}
+
+\begin{corollary}[Global First-Contraction Decomposition]
+\label{cor:global-first-contraction-decomposition}
+
+The initial residual set decomposes disjointly as
+\[
+\boxed{
+\mathcal R_1
+=
+\left(
+\bigsqcup_{m\ge1}\mathcal F_{m+1}
+\right)
+\sqcup
+\mathcal R_\infty.
+}
+\]
+\end{corollary}
+
+\begin{proof}
+Let \(x\in\mathcal R_1\). Either
+\[
+x\in\mathcal R_m
+\]
+for every \(m\ge1\), in which case
+\[
+x\in\mathcal R_\infty,
+\]
+or else there is a least \(m\ge1\) such that
+\[
+x\notin\mathcal R_{m+1}.
+\]
+By minimality,
+\[
+x\in\mathcal R_m,
+\]
+and hence
+\[
+x\in
+\mathcal R_m\setminus\mathcal R_{m+1}
+=
+\mathcal F_{m+1}.
+\]
+
+Conversely, every exit layer \(\mathcal F_{m+1}\) lies in
+\(\mathcal R_1\) by nestedness, as does \(\mathcal R_\infty\).
+
+The exit layers are pairwise disjoint because an element has at most one
+first level at which it leaves the residual forest, and no exit-layer
+element belongs to \(\mathcal R_\infty\). Hence the decomposition is
+disjoint.
+\end{proof}
+
+\begin{remark}[Symbolic Conservation]
+Every trajectory in the initial residual set has exactly one of two
+possibilities: it reaches a first-contraction layer at some finite symbolic
+depth, or it remains residual at every finite depth.
+
+Thus symbolic refinement neither creates nor duplicates trajectories. It
+partitions the initial residual set into first-contraction exits at finite
+symbolic depths and the infinite-depth residual set.
+\end{remark}
+
+% ------------------------------------------------------------
+\subsection{Residual Mass and Finite-Stage Conservation}
+% ------------------------------------------------------------
+
+Because \(\mathcal W_m^{\mathrm{res}}\) is finite and distinct words at the
+same symbolic length have disjoint realization cylinders, define the
+residual mass at depth \(m\) by
+\[
+M_m
+:=
+\sum_{\omega\in\mathcal W_m^{\mathrm{res}}}
+2^{-(D(\omega)+1)}.
+\]
+
+Each term is exactly the natural density of the corresponding realization
+cylinder \(C_\omega\).
+
+\begin{theorem}[Residual Mass Equals Residual Density]
+\label{thm:residual-mass-density}
+
+For every \(m\ge1\),
+\[
+\boxed{
+\operatorname{dens}(\mathcal R_m)=M_m.
+}
+\]
+\end{theorem}
+
+\begin{proof}
+For \(N\ge1\), let
+\[
+A_m(N)
+:=
+\#\bigl(\mathcal R_m\cap[0,N)\bigr).
+\]
+Since the cylinders
+\[
+\{C_\omega:\omega\in\mathcal W_m^{\mathrm{res}}\}
+\]
+form a finite pairwise-disjoint family,
+\[
+A_m(N)
+=
+\sum_{\omega\in\mathcal W_m^{\mathrm{res}}}
+A_{r_\omega,D(\omega)+1}(N),
+\]
+where \(A_{r,k}(N)\) is the dyadic-cylinder counting function introduced
+earlier.
+
+For each residual word \(\omega\),
+\[
+\frac{A_{r_\omega,D(\omega)+1}(N)}{N}
+\longrightarrow
+2^{-(D(\omega)+1)}.
+\]
+Because the residual level is finite, the limits may be summed:
+\[
+\frac{A_m(N)}{N}
+\longrightarrow
+\sum_{\omega\in\mathcal W_m^{\mathrm{res}}}
+2^{-(D(\omega)+1)}
+=
+M_m.
+\]
+Hence
+\[
+\operatorname{dens}(\mathcal R_m)=M_m.
+\]
+\end{proof}
+
+\begin{theorem}[Exit-Layer Density]
+\label{thm:first-contraction-layer-density}
+
+For every \(m\ge1\), the first-contraction layer \(\mathcal F_{m+1}\) has
+natural density
+\[
+\boxed{
+\operatorname{dens}(\mathcal F_{m+1})
+=
+M_m-M_{m+1}.
+}
+\]
+Consequently,
+\[
+M_{m+1}\le M_m.
+\]
+\end{theorem}
+
+\begin{proof}
+From Corollary~\ref{cor:residual-forest-decomposition},
+\[
+\mathcal R_m
+=
+\mathcal F_{m+1}
+\sqcup
+\mathcal R_{m+1}.
+\]
+Therefore, for every \(N\),
+\[
+\#(\mathcal R_m\cap[0,N))
+=
+\#(\mathcal F_{m+1}\cap[0,N))
++
+\#(\mathcal R_{m+1}\cap[0,N)).
+\]
+Rearranging and dividing by \(N\) gives
+\[
+\frac{\#(\mathcal F_{m+1}\cap[0,N))}{N}
+=
+\frac{\#(\mathcal R_m\cap[0,N))}{N}
+-
+\frac{\#(\mathcal R_{m+1}\cap[0,N))}{N}.
+\]
+Passing to the limit and applying
+Theorem~\ref{thm:residual-mass-density} yields
+\[
+\operatorname{dens}(\mathcal F_{m+1})
+=
+M_m-M_{m+1}.
+\]
+A natural density is nonnegative, so
+\[
+M_{m+1}\le M_m.
+\]
+\end{proof}
+
+\begin{corollary}[Finite-Stage Mass Conservation]
+\label{cor:finite-stage-mass-conservation}
+
+For \(m\ge1\) and \(k\ge1\),
+\[
+\boxed{
+\sum_{j=0}^{k-1}
+\operatorname{dens}(\mathcal F_{m+j+1})
+=
+M_m-M_{m+k}.
+}
+\]
+Equivalently,
+\[
+M_m
+=
+\sum_{j=0}^{k-1}
+\operatorname{dens}(\mathcal F_{m+j+1})
++
+M_{m+k}.
+\]
+\end{corollary}
+
+\begin{proof}
+By Theorem~\ref{thm:first-contraction-layer-density},
+\[
+\operatorname{dens}(\mathcal F_{m+j+1})
+=
+M_{m+j}-M_{m+j+1}.
+\]
+Summing over \(0\le j<k\) gives the telescoping identity
+\[
+\sum_{j=0}^{k-1}
+\bigl(M_{m+j}-M_{m+j+1}\bigr)
+=
+M_m-M_{m+k}.
+\]
+\end{proof}
+
+\begin{remark}[Finite-Stage Versus Asymptotic Collapse]
+The preceding identities are entirely finite-stage statements. They show
+that residual mass is redistributed exactly between successive
+first-contraction exit layers and the portion that remains unresolved.
+
+No assertion has yet been made that
+\[
+M_m\longrightarrow0.
+\]
+In particular, no continuity-from-above property of natural density and no
+countable additivity over infinitely many first-contraction cylinders is
+being invoked.
+
+The remaining task is quantitative: prove directly that the residual mass
+\(M_m\) tends to zero. That decay estimate is developed in the next section.
+\end{remark}
+
+
+% ============================================================
+\section{Residual Mass Collapse}
+\label{sec:residual-mass-collapse}
+% ============================================================
+
+The preceding section reduced the unresolved part of the symbolic dynamics
+to the residual forest. At each depth \(m\), its natural density is the
+finite residual mass
+\[
+M_m
+=
+\sum_{\omega\in\mathcal W_m^{\mathrm{res}}}
+2^{-(D(\omega)+1)},
+\]
+and the finite-stage conservation law gives
+\[
+\operatorname{dens}(\mathcal F_{m+1})
+=
+M_m-M_{m+1}.
+\]
+
+The remaining question is therefore quantitative:
+
+\[
+\boxed{M_m\longrightarrow0\ ?}
+\]
+
+A direct estimate of \(M_m\) is inconvenient because extension of a word
+changes its dyadic weight by a factor depending on the appended division
+count. We therefore introduce an auxiliary weight for which all positive
+extensions can be summed geometrically. The resulting one-step contraction
+is then transferred back to the true dyadic residual mass.
+
+% ------------------------------------------------------------
+\subsection{Auxiliary Weighted Residual Mass}
+% ------------------------------------------------------------
+
+For a residual word \(\omega\), define its auxiliary weight by
+\[
+w(\omega)
+:=
+\left(\frac{3}{8}\right)^{D(\omega)}.
+\]
+The corresponding weighted residual mass at depth \(m\) is
+\[
+W_m
+:=
+\sum_{\omega\in\mathcal W_m^{\mathrm{res}}}
+\left(\frac{3}{8}\right)^{D(\omega)}.
+\]
+
+The choice \(3/8\) is adapted to the extension structure of division words.
+If a positive division count \(d\) is appended to \(\omega\), then
+\[
+D(\omega d)=D(\omega)+d,
+\]
+and hence
+\[
+w(\omega d)
+=
+w(\omega)
+\left(\frac{3}{8}\right)^d.
+\]
+For every \(m\ge1\), all possible residual extensions lie within the
+finite range \(1\le d<B(m+1)\), whose geometric weight satisfies
+\[
+\sum_{d=1}^{B(m+1)-1}
+\left(\frac38\right)^d
+<
+\sum_{d=1}^{\infty}
+\left(\frac38\right)^d
+=
+\frac{3/8}{1-3/8}
+=
+\frac35.
+\]
+Thus \(3/5\) is a uniform upper bound for the finite extension sum at every
+residual depth.
+
+\begin{theorem}[One-Step Weighted Contraction]
+\label{thm:weighted-residual-contraction}
+
+For every \(m\ge1\),
+\[
+\boxed{
+W_{m+1}\le\frac35\,W_m.
+}
+\]
+\end{theorem}
+
+\begin{proof}
+Every residual word \(\eta\) of length \(m+1\) has a unique decomposition
+\[
+\eta=\omega d,
+\]
+where \(\omega\) is its length-\(m\) prefix and \(d\ge1\) is its final
+division count. By residual prefix closure, \(\omega\) is residual.
+
+Because \(\eta\) is residual at depth \(m+1\),
+\[
+D(\eta)<B(m+1).
+\]
+Since
+\[
+D(\eta)=D(\omega)+d
+\]
+and \(D(\omega)\ge0\), it follows that
+\[
+1\le d<B(m+1).
+\]
+
+Thus the actual residual children of the words in
+\(\mathcal W_m^{\mathrm{res}}\) form a subfamily of the finite collection
+of extensions with
+\[
+1\le d<B(m+1).
+\]
+Since all weights are nonnegative,
+\[
+\begin{aligned}
+W_{m+1}
+&\le
+\sum_{\omega\in\mathcal W_m^{\mathrm{res}}}
+\sum_{d=1}^{B(m+1)-1}
+\left(\frac38\right)^{D(\omega)+d}
+\\[4pt]
+&=
+\sum_{\omega\in\mathcal W_m^{\mathrm{res}}}
+\left(\frac38\right)^{D(\omega)}
+\sum_{d=1}^{B(m+1)-1}
+\left(\frac38\right)^d
+\\[4pt]
+&\le
+\frac35
+\sum_{\omega\in\mathcal W_m^{\mathrm{res}}}
+\left(\frac38\right)^{D(\omega)}
+\\[4pt]
+&=
+\frac35\,W_m.
+\end{aligned}
+\]
+\end{proof}
+
+At depth one, the only residual word is \((1)\). Therefore
+\[
+W_1=\frac38<\frac35.
+\]
+
+\begin{corollary}[Geometric Bound for Weighted Mass]
+\label{cor:weighted-residual-geometric-bound}
+
+For every \(m\ge1\),
+\[
+\boxed{
+W_m\le\left(\frac35\right)^m.
+}
+\]
+\end{corollary}
+
+\begin{proof}
+The result follows by induction from
+Theorem~\ref{thm:weighted-residual-contraction} and the bound
+\[
+W_1\le\frac35.
+\]
+\end{proof}
+
+\begin{remark}
+The weighted mass \(W_m\) is auxiliary; it is not itself the natural density
+of the residual level. Its purpose is to expose a uniformly subcritical
+extension rule. The next step transfers this geometric decay to the genuine
+dyadic mass \(M_m\).
+\end{remark}
+
+% ------------------------------------------------------------
+\subsection{Transfer to the Dyadic Residual Mass}
+% ------------------------------------------------------------
+
+The exact density contribution of a realization cylinder with total
+division count \(D\) is
+\[
+2^{-(D+1)}.
+\]
+This weight admits the factorization
+\[
+\boxed{
+\frac{1}{2^{D+1}}
+=
+\frac12
+\left(\frac43\right)^D
+\left(\frac38\right)^D.
+}
+\]
+Indeed,
+\[
+\frac43\cdot\frac38=\frac12.
+\]
+
+The final factor is precisely the auxiliary weight used in \(W_m\). The
+remaining factor can be controlled uniformly across a residual level.
+
+If
+\[
+\omega\in\mathcal W_m^{\mathrm{res}},
+\]
+then residuality at its terminal prefix gives
+\[
+D(\omega)<B(m),
+\]
+and therefore
+\[
+D(\omega)\le B(m)-1.
+\]
+Since \(4/3>1\),
+\[
+\left(\frac43\right)^{D(\omega)}
+\le
+\left(\frac43\right)^{B(m)-1}.
+\]
+
+\begin{proposition}[Weighted Envelope for Residual Mass]
+\label{prop:residual-weighted-envelope}
+
+For every \(m\ge1\),
+\[
+M_m
+\le
+\frac12
+\left(\frac43\right)^{B(m)-1}
+W_m.
+\]
+Consequently,
+\[
+\boxed{
+0\le M_m\le E_m,
+}
+\]
+where
+\[
+E_m
+:=
+\frac12
+\left(\frac43\right)^{B(m)-1}
+\left(\frac35\right)^m.
+\]
+\end{proposition}
+
+\begin{proof}
+For each
+\(\omega\in\mathcal W_m^{\mathrm{res}}\),
+\[
+\begin{aligned}
+2^{-(D(\omega)+1)}
+&=
+\frac12
+\left(\frac43\right)^{D(\omega)}
+\left(\frac38\right)^{D(\omega)}
+\\
+&\le
+\frac12
+\left(\frac43\right)^{B(m)-1}
+\left(\frac38\right)^{D(\omega)}.
+\end{aligned}
+\]
+Summing over the finite residual level gives
+\[
+M_m
+\le
+\frac12
+\left(\frac43\right)^{B(m)-1}W_m.
+\]
+Applying Corollary~\ref{cor:weighted-residual-geometric-bound} yields
+\[
+M_m
+\le
+\frac12
+\left(\frac43\right)^{B(m)-1}
+\left(\frac35\right)^m
+=
+E_m.
+\]
+Nonnegativity of \(M_m\) is immediate from its definition.
+\end{proof}
+
+The envelope \(E_m\) contains two competing effects. The factor
+\[
+\left(\frac43\right)^{B(m)-1}
+\]
+grows with symbolic depth, while
+\[
+\left(\frac35\right)^m
+\]
+decays geometrically. It remains to show that the latter dominates.
+
+% ------------------------------------------------------------
+\subsection{Five-Step Envelope Contraction}
+% ------------------------------------------------------------
+
+The necessary control of the threshold \(B(m)\) follows from the elementary
+integer inequality
+\[
+3^5=243<256=2^8.
+\]
+
+\begin{lemma}[Five-Step Threshold Growth]
+\label{lem:five-step-threshold-growth}
+
+For every \(m\ge0\),
+\[
+\boxed{
+B(m+5)\le B(m)+8.
+}
+\]
+\end{lemma}
+
+\begin{proof}
+By definition of \(B(m)\),
+\[
+3^m<2^{B(m)}.
+\]
+Multiplying this inequality by
+\[
+3^5<2^8
+\]
+gives
+\[
+3^{m+5}
+<
+2^{B(m)+8}.
+\]
+Since \(B(m+5)\) is the least exponent \(k\) for which
+\[
+3^{m+5}<2^k,
+\]
+we conclude that
+\[
+B(m+5)\le B(m)+8.
+\]
+\end{proof}
+
+Define
+\[
+q
+:=
+\left(\frac43\right)^8
+\left(\frac35\right)^5.
+\]
+A direct calculation gives
+\[
+q
+=
+\frac{65536}{84375}
+<1.
+\]
+
+\begin{theorem}[Five-Step Envelope Contraction]
+\label{thm:five-step-envelope-contraction}
+
+For every \(m\ge1\),
+\[
+\boxed{
+E_{m+5}\le qE_m.
+}
+\]
+\end{theorem}
+
+\begin{proof}
+By Lemma~\ref{lem:five-step-threshold-growth},
+\[
+B(m+5)-1
+\le
+B(m)-1+8.
+\]
+Therefore
+\[
+\begin{aligned}
+E_{m+5}
+&=
+\frac12
+\left(\frac43\right)^{B(m+5)-1}
+\left(\frac35\right)^{m+5}
+\\
+&\le
+\frac12
+\left(\frac43\right)^{B(m)-1+8}
+\left(\frac35\right)^{m+5}
+\\
+&=
+\left(\frac43\right)^8
+\left(\frac35\right)^5
+E_m
+\\
+&=
+qE_m.
+\end{aligned}
+\]
+\end{proof}
+
+\begin{corollary}[Decay of the Residual-Mass Envelope]
+\label{cor:residual-envelope-decay}
+
+The envelope satisfies
+\[
+\boxed{
+E_m\longrightarrow0
+\qquad (m\to\infty).
+}
+\]
+\end{corollary}
+
+\begin{proof}
+Every positive integer can be written uniquely as
+\[
+m=r+5k,
+\qquad
+r\in\{1,2,3,4,5\},
+\qquad
+k\ge0.
+\]
+Fix \(r\in\{1,2,3,4,5\}\). Iterating
+Theorem~\ref{thm:five-step-envelope-contraction} gives
+\[
+E_{r+5k}
+\le
+q^k E_r.
+\]
+Since
+\[
+0<q<1,
+\]
+we have
+\[
+q^kE_r\longrightarrow0,
+\]
+and therefore
+\[
+E_{r+5k}\longrightarrow0
+\]
+for each \(r\in\{1,2,3,4,5\}\).
+
+These five subsequences exhaust all positive indices. Hence
+\[
+E_m\longrightarrow0.
+\]
+\end{proof}
+
+\begin{remark}
+The five-step grouping is not an asymptotic approximation. It is an exact
+integer comparison chosen so that the possible threshold growth and the
+weighted-mass decay can be compared uniformly:
+\[
+3^5<2^8
+\]
+controls the former, while
+\[
+\left(\frac35\right)^5
+\]
+controls the latter. Their combined multiplier is strictly below \(1\).
+\end{remark}
+
+% ------------------------------------------------------------
+\subsection{Residual Mass Collapse and First-Contraction Exhaustion}
+% ------------------------------------------------------------
+
+\begin{theorem}[Residual Mass Collapse]
+\label{thm:residual-mass-collapse}
+
+The residual mass tends to zero:
+\[
+\boxed{
+M_m\longrightarrow0
+\qquad (m\to\infty).
+}
+\]
+Equivalently,
+\[
+\operatorname{dens}(\mathcal R_m)\longrightarrow0.
+\]
+\end{theorem}
+
+\begin{proof}
+For every \(m\ge1\),
+Proposition~\ref{prop:residual-weighted-envelope} gives
+\[
+0\le M_m\le E_m.
+\]
+By Corollary~\ref{cor:residual-envelope-decay},
+\[
+E_m\longrightarrow0.
+\]
+The squeeze theorem therefore yields
+\[
+M_m\longrightarrow0.
+\]
+Since
+\[
+M_m=\operatorname{dens}(\mathcal R_m),
+\]
+the equivalent density statement follows.
+\end{proof}
+
+The finite-stage conservation law from the preceding section now has an
+asymptotic consequence.
+
+\begin{corollary}[Exhaustion by First-Contraction Mass]
+\label{cor:first-contraction-mass-exhaustion}
+
+For every \(k\ge1\),
+\[
+\sum_{j=0}^{k-1}
+\operatorname{dens}(\mathcal F_{j+2})
+=
+M_1-M_{k+1},
+\]
+and therefore
+\[
+\boxed{
+\lim_{k\to\infty}
+\sum_{j=0}^{k-1}
+\operatorname{dens}(\mathcal F_{j+2})
+=
+M_1.
+}
+\]
+\end{corollary}
+
+\begin{proof}
+Finite-stage mass conservation gives
+\[
+\sum_{j=0}^{k-1}
+\operatorname{dens}(\mathcal F_{j+2})
+=
+M_1-M_{k+1}.
+\]
+By Theorem~\ref{thm:residual-mass-collapse},
+\[
+M_{k+1}\longrightarrow0.
+\]
+Hence the partial sums converge to \(M_1\).
+\end{proof}
+
+\begin{remark}[Asymptotic Conservation]
+The residual forest therefore loses no asymptotic mass except through its
+first-contraction exit layers. At every finite stage,
+\[
+M_1
+=
+\sum_{j=0}^{k-1}
+\operatorname{dens}(\mathcal F_{j+2})
++
+M_{k+1},
+\]
+and the terminal residual term tends to zero.
+
+Thus the finite partial sums of first-contraction layer densities
+asymptotically exhaust the initial residual mass \(M_1\). This is a statement
+about the limit of finite-stage density identities; it does not appeal to
+countable additivity of natural density.
+\end{remark}
+
+\begin{remark}
+The conclusion established here concerns affine first contraction. On each
+fixed subunit-slope realization cylinder, the preceding section showed that
+the exceptional set of non-descending realizations is finite.
+
+This fixed-cylinder statement does not yet control an entire
+first-contraction layer, which may contain infinitely many terminal words.
+The remaining task is therefore to obtain a uniform descent cutoff at each
+exit depth, combine that control with residual mass collapse, and finally
+transfer accelerated descent to eventual descent under the ordinary Collatz
+map.
+\end{remark}
+
+
+% ============================================================
+\section{Density-One Eventual Descent}
+\label{sec:density-one-descent}
+% ============================================================
+
+The preceding section proved that the residual mass tends to zero:
+\[
+M_m=\operatorname{dens}(\mathcal R_m)\longrightarrow0.
+\]
+It remains to convert this symbolic mass collapse into genuine dynamical
+descent and then transfer the result from the fully accelerated map to the
+ordinary Collatz map.
+
+Two issues must be addressed. First, a first-contraction cylinder may contain
+finitely many small realizations that do not yet descend below their starting
+values. Since a fixed first-contraction layer may contain infinitely many
+child words, these exceptional sets cannot simply be united word by word.
+Instead, a uniform cutoff for each entire layer is required.
+
+Second, the residual forest describes the fully accelerated dynamics of odd
+positive integers. The final result concerns the ordinary Collatz map on
+\(\mathbb N_{>0}\). The last part of the argument identifies the initial
+residual class, handles the complementary congruence classes directly, and
+transfers accelerated descent to ordinary Collatz descent.
+
+% ------------------------------------------------------------
+\subsection{Uniform Descent on First-Contraction Layers}
+% ------------------------------------------------------------
+
+Recall that
+\[
+\mathcal F_{m+1}
+=
+\mathcal R_m\setminus\mathcal R_{m+1}
+\]
+is precisely the set of natural numbers realizing a first-contraction word of
+length \(m+1\).
+
+Let
+\[
+\eta=\omega d
+\]
+be such a word, where \(\omega\) is its residual prefix of length \(m\) and
+\(d\ge1\) is its final division count. The affine concatenation formula gives
+\[
+c(\eta)
+=
+3c(\omega)+2^{D(\omega)}c((d)).
+\]
+Since
+\[
+c((d))=1,
+\]
+we obtain
+\[
+\boxed{
+c(\omega d)
+=
+3c(\omega)+2^{D(\omega)}.
+}
+\]
+In particular, the affine constant of a one-symbol extension depends on its
+residual parent but not on the value of the appended division count.
+This observation supplies a uniform bound across an entire
+first-contraction layer.
+
+\begin{theorem}[Uniform Descent on a First-Contraction Layer]
+\label{thm:uniform-layer-descent}
+
+For every \(m\ge1\), there exists \(K_m\in\mathbb N\) such that
+\[
+x\in\mathcal F_{m+1},
+\qquad
+x\ge K_m
+\]
+implies
+\[
+f^{m+1}(x)<x.
+\]
+\end{theorem}
+
+\begin{proof}
+The residual parent level
+\[
+\mathcal W_m^{\mathrm{res}}
+\]
+is finite. If it is empty, then
+\[
+\mathcal F_{m+1}=\varnothing,
+\]
+and the result is immediate.
+
+Otherwise define
+\[
+K_m
+:=
+1+
+\max_{\omega\in\mathcal W_m^{\mathrm{res}}}
+\left(
+3c(\omega)+2^{D(\omega)}
+\right).
+\]
+This maximum exists because
+\(\mathcal W_m^{\mathrm{res}}\) is finite and nonempty.
+
+Now let
+\[
+x\in\mathcal F_{m+1}.
+\]
+By Theorem~\ref{thm:exit-layer-first-contraction}, \(x\) realizes some
+first-contraction word
+\[
+\eta=\omega d
+\]
+of length \(m+1\), with residual parent
+\[
+\omega\in\mathcal W_m^{\mathrm{res}}.
+\]
+Therefore
+\[
+c(\eta)
+=
+3c(\omega)+2^{D(\omega)}
+<
+K_m.
+\]
+
+Since \(\eta\) is a first-contraction word,
+\[
+D(\eta)\ge B(m+1),
+\]
+and hence
+\[
+3^{m+1}<2^{D(\eta)}.
+\]
+Thus
+\[
+2^{D(\eta)}-3^{m+1}
+\]
+is a positive integer and therefore is at least \(1\).
+
+If \(x\ge K_m\), then
+\[
+c(\eta)<x,
+\]
+and consequently
+\[
+\frac{c(\eta)}
+     {2^{D(\eta)}-3^{m+1}}
+\le c(\eta)<x.
+\]
+By Proposition~\ref{prop:affine-descent-threshold},
+\[
+F_\eta(x)<x.
+\]
+Because \(x\) realizes \(\eta\),
+\[
+F_\eta(x)=f^{m+1}(x),
+\]
+so
+\[
+f^{m+1}(x)<x.
+\]
+\end{proof}
+
+\begin{corollary}[Finite Non-Descent on Each Exit Layer]
+\label{cor:finite-layer-nondescent}
+
+For every \(m\ge1\), the set
+\[
+\mathcal E_{m+1}
+:=
+\left\{
+x\in\mathcal F_{m+1}:
+f^n(x)\ge x
+\text{ for every }n\ge0
+\right\}
+\]
+is finite.
+\end{corollary}
+
+\begin{proof}
+By Theorem~\ref{thm:uniform-layer-descent}, every
+\[
+x\in\mathcal F_{m+1}
+\]
+with \(x\ge K_m\) satisfies
+\[
+f^{m+1}(x)<x.
+\]
+Hence every member of \(\mathcal E_{m+1}\) lies below \(K_m\).
+\end{proof}
+
+\begin{remark}
+This uniformity is essential. A fixed first-contraction layer may contain
+infinitely many first-contraction words, because the total division count
+at the terminal depth may exceed the corresponding dyadic threshold by an
+arbitrarily large amount. The finiteness of the exceptional set therefore
+does not follow by taking an infinite union of the finite exceptional sets
+associated with individual cylinders.
+
+Instead, all children at a fixed layer inherit their affine constants from
+the finitely many residual parents. This is what produces a single cutoff
+\(K_m\) for the entire layer.
+\end{remark}
+
+% ------------------------------------------------------------
+\subsection{Density Zero of Residual Non-Descent}
+% ------------------------------------------------------------
+
+Define the initially residual non-descent set
+\[
+\mathcal N_{\mathrm{res}}
+:=
+\left\{
+x\in\mathcal R_1:
+f^n(x)\ge x
+\text{ for every }n\ge0
+\right\}.
+\]
+
+The finite-stage forest decomposition gives, for every \(k\ge1\),
+\[
+\mathcal R_1
+=
+\left(
+\bigsqcup_{j=2}^{k+1}\mathcal F_j
+\right)
+\sqcup
+\mathcal R_{k+1}.
+\]
+Consequently, an initially residual integer that never descends either
+survives to residual depth \(k+1\), or belongs to one of the finitely many
+non-descending exceptional sets from the preceding exit layers.
+
+\begin{proposition}[Finite-Depth Non-Descent Cover]
+\label{prop:finite-depth-nondescent-cover}
+
+For every \(k\ge1\), there exists a finite set
+\[
+E_k\subseteq\mathbb N
+\]
+such that
+\[
+\boxed{
+\mathcal N_{\mathrm{res}}
+\subseteq
+\mathcal R_{k+1}\cup E_k.
+}
+\]
+\end{proposition}
+
+\begin{proof}
+Set
+\[
+E_k
+:=
+\bigcup_{j=2}^{k+1}\mathcal E_j.
+\]
+Each \(\mathcal E_j\) is finite by
+Corollary~\ref{cor:finite-layer-nondescent}, and the union contains only
+finitely many layers, so \(E_k\) is finite.
+
+Now let
+\[
+x\in\mathcal N_{\mathrm{res}}.
+\]
+If
+\[
+x\in\mathcal R_{k+1},
+\]
+there is nothing to prove. Otherwise, the finite-stage forest decomposition
+places \(x\) in some
+\[
+\mathcal F_j,
+\qquad
+2\le j\le k+1.
+\]
+Since \(x\) never descends, it belongs to
+\[
+\mathcal E_j\subseteq E_k.
+\]
+\end{proof}
+
+\begin{theorem}[Initially Residual Non-Descent Has Density Zero]
+\label{thm:residual-nondescent-density-zero}
+
+The set \(\mathcal N_{\mathrm{res}}\) has natural density zero:
+\[
+\boxed{
+\operatorname{dens}(\mathcal N_{\mathrm{res}})=0.
+}
+\]
+\end{theorem}
+
+\begin{proof}
+Let
+\[
+A(N)
+:=
+\#\bigl(\mathcal N_{\mathrm{res}}\cap[0,N)\bigr).
+\]
+Fix \(\varepsilon>0\).
+
+By residual mass collapse, choose \(k\) such that
+\[
+M_{k+1}<\frac{\varepsilon}{2}.
+\]
+By Proposition~\ref{prop:finite-depth-nondescent-cover},
+\[
+\mathcal N_{\mathrm{res}}
+\subseteq
+\mathcal R_{k+1}\cup E_k,
+\]
+where \(E_k\) is finite. Writing
+\[
+C_k:=\#E_k,
+\]
+we obtain for every \(N\)
+\[
+A(N)
+\le
+\#\bigl(\mathcal R_{k+1}\cap[0,N)\bigr)+C_k.
+\]
+Hence
+\[
+\frac{A(N)}{N}
+\le
+\frac{\#(\mathcal R_{k+1}\cap[0,N))}{N}
++
+\frac{C_k}{N}.
+\]
+
+The depth \(k+1\) is now fixed. Since
+\[
+\operatorname{dens}(\mathcal R_{k+1})
+=
+M_{k+1},
+\]
+the first term tends to \(M_{k+1}<\varepsilon/2\), while
+\[
+\frac{C_k}{N}\longrightarrow0.
+\]
+Therefore, for all sufficiently large \(N\),
+\[
+\frac{A(N)}{N}<\varepsilon.
+\]
+Since \(\varepsilon>0\) was arbitrary,
+\[
+\frac{A(N)}{N}\longrightarrow0.
+\]
+\end{proof}
+
+\begin{remark}
+The order of the limits is important. A finite residual depth is chosen
+first, using
+\[
+M_m\longrightarrow0.
+\]
+Only after that depth has been fixed is the interval cutoff
+\[
+N\longrightarrow\infty
+\]
+taken.
+
+Thus the argument uses neither countable additivity of natural density nor
+an interchange of symbolic-depth and interval-size limits.
+\end{remark}
+
+% ------------------------------------------------------------
+\subsection{The Initial Residual Congruence Class}
+% ------------------------------------------------------------
+
+The abstract initial residual population has a simple arithmetic
+description.
+
+\begin{theorem}[Initial Residual Class]
+\label{thm:initial-residual-mod-four}
+
+For every \(x\in\mathbb N\),
+\[
+\boxed{
+x\in\mathcal R_1
+\quad\Longleftrightarrow\quad
+x\equiv3\pmod4.
+}
+\]
+\end{theorem}
+
+\begin{proof}
+The unique residual word of length one is
+\[
+(1).
+\]
+Hence
+\[
+x\in\mathcal R_1
+\]
+if and only if \(x\) realizes the one-symbol word \((1)\), equivalently,
+\[
+v_2(3x+1)=1.
+\]
+By the exact valuation criterion,
+\[
+3x+1\equiv2\pmod4.
+\]
+This is equivalent to
+\[
+x\equiv3\pmod4.
+\]
+\end{proof}
+
+Thus the residual forest begins with exactly one quarter of the natural
+numbers. The remaining congruence classes are elementary.
+
+\begin{proposition}[Immediate Descent Outside the Initial Residual Class]
+\label{prop:immediate-descent-outside-residual}
+
+The following hold.
+
+\begin{enumerate}
+\item Every positive even integer \(x\) satisfies
+\[
+T(x)<x,
+\]
+where \(T\) denotes the ordinary Collatz map.
+
+\item Every \(x>1\) satisfying
+\[
+x\equiv1\pmod4
+\]
+satisfies
+\[
+f(x)<x.
+\]
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+If \(x\) is positive and even, then
+\[
+T(x)=\frac{x}{2}<x.
+\]
+
+Now suppose
+\[
+x>1,
+\qquad
+x\equiv1\pmod4.
+\]
+Then
+\[
+4\mid 3x+1,
+\]
+so
+\[
+v_2(3x+1)\ge2.
+\]
+Consequently,
+\[
+f(x)
+=
+\frac{3x+1}{2^{v_2(3x+1)}}
+\le
+\frac{3x+1}{4}.
+\]
+Since \(x>1\),
+\[
+3x+1<4x,
+\]
+and therefore
+\[
+f(x)<x.
+\]
+\end{proof}
+
+\begin{remark}
+Among positive integers, the only value not covered by the preceding
+immediate-descent alternatives is \(1\), together with the congruence class
+\[
+x\equiv3\pmod4,
+\]
+which is precisely the initial residual class \(\mathcal R_1\).
+
+In this sense, the residual-forest argument resolves the single nontrivial
+quarter of the positive integers left after the elementary congruence
+reduction.
+\end{remark}
+
+% ------------------------------------------------------------
+\subsection{Transfer to the Ordinary Collatz Map}
+% ------------------------------------------------------------
+
+Define the ordinary Collatz map
+\[
+T:\mathbb N_{>0}\to\mathbb N_{>0}
+\]
+by
+\[
+T(x)
+=
+\begin{cases}
+x/2, & x\equiv0\pmod2,\\[4pt]
+3x+1, & x\equiv1\pmod2.
+\end{cases}
+\]
+
+For an odd starting value \(x\), one fully accelerated step consists of one
+ordinary odd Collatz step followed by exactly
+\[
+d(x)=v_2(3x+1)
+\]
+successive divisions by \(2\). Hence
+\[
+f(x)
+=
+T^{\,d(x)+1}(x).
+\]
+
+Iterating this observation gives the following bridge.
+
+\begin{theorem}[Accelerated Iterates Occur Along the Ordinary Orbit]
+\label{thm:accelerated-to-ordinary-iterate}
+
+Let \(x\in\mathbb N_{>0}\) be odd. For every \(n\ge0\), there exists
+\(m\ge0\) such that
+\[
+\boxed{
+T^m(x)=f^n(x).
+}
+\]
+\end{theorem}
+
+\begin{proof}
+Proceed by induction on \(n\).
+
+For \(n=0\), take \(m=0\).
+
+Suppose the result holds after \(n\) accelerated steps. One additional
+fully accelerated step from the odd value \(f^n(x)\) is obtained by one
+ordinary odd step followed by exactly
+\[
+d\!\left(f^n(x)\right)
+\]
+ordinary halving steps. Hence the endpoint \(f^{n+1}(x)\) is reached after
+finitely many additional ordinary Collatz steps. Concatenating the two
+finite ordinary segments proves the result.
+\end{proof}
+
+\begin{corollary}[Accelerated Descent Implies Ordinary Descent]
+\label{cor:accelerated-implies-ordinary-descent}
+
+Let \(x\in\mathbb N_{>0}\) be odd. If
+\[
+f^n(x)<x
+\]
+for some \(n\), then
+\[
+T^m(x)<x
+\]
+for some \(m\).
+\end{corollary}
+
+\begin{proof}
+By Theorem~\ref{thm:accelerated-to-ordinary-iterate}, choose \(m\) such that
+\[
+T^m(x)=f^n(x).
+\]
+Then
+\[
+T^m(x)<x.
+\]
+\end{proof}
+
+% ------------------------------------------------------------
+\subsection{Density-One Descent}
+% ------------------------------------------------------------
+
+We can now assemble the argument.
+
+Define the ordinary eventual-descent set
+\[
+\mathcal D
+:=
+\left\{
+x\in\mathbb N_{>0}:
+\exists m\ge0,\;
+T^m(x)<x
+\right\},
+\]
+and let
+\[
+\mathcal N
+:=
+\mathbb N_{>0}\setminus\mathcal D
+\]
+denote the ordinary non-descent set.
+
+\begin{theorem}[Density-One Eventual Descent]
+\label{thm:density-one-eventual-descent}
+
+The set of positive integers admitting eventual descent under the ordinary
+Collatz map has natural density one:
+\[
+\boxed{
+\operatorname{dens}(\mathcal D)=1.
+}
+\]
+
+Equivalently,
+\[
+\boxed{
+\lim_{N\to\infty}
+\frac{
+\#\left\{
+x\in\mathbb N_{>0}:
+x<N,\;
+\exists m\ge0,\;
+T^m(x)<x
+\right\}
+}{N}
+=
+1.
+}
+\]
+\end{theorem}
+
+\begin{proof}
+We first show that the ordinary non-descent set has density zero.
+
+Let
+\[
+x\in\mathcal N
+\]
+with
+\[
+x\ne1.
+\]
+Then \(x>1\).
+
+The integer \(x\) cannot be even, since every positive even integer descends
+after one ordinary Collatz step. Hence \(x\) is odd.
+
+It also cannot satisfy
+\[
+x\equiv1\pmod4,
+\]
+because Proposition~\ref{prop:immediate-descent-outside-residual} would give
+\[
+f(x)<x,
+\]
+and Corollary~\ref{cor:accelerated-implies-ordinary-descent} would then give
+ordinary Collatz descent.
+
+Therefore
+\[
+x\equiv3\pmod4.
+\]
+By Theorem~\ref{thm:initial-residual-mod-four},
+\[
+x\in\mathcal R_1.
+\]
+
+Moreover, \(x\) cannot descend under any accelerated iterate. If
+\[
+f^n(x)<x
+\]
+for some \(n\), then accelerated descent would again imply ordinary descent,
+contrary to \(x\in\mathcal N\).
+
+Hence
+\[
+x\in\mathcal N_{\mathrm{res}}.
+\]
+We have therefore proved
+\[
+\boxed{
+\mathcal N
+\subseteq
+\mathcal N_{\mathrm{res}}\cup\{1\}.
+}
+\]
+
+By Theorem~\ref{thm:residual-nondescent-density-zero},
+\[
+\operatorname{dens}(\mathcal N_{\mathrm{res}})=0.
+\]
+Moreover, for every \(N\ge1\), the inclusion above gives
+\[
+\#\bigl(\mathcal N\cap[0,N)\bigr)
+\le
+\#\bigl(\mathcal N_{\mathrm{res}}\cap[0,N)\bigr)+1.
+\]
+Therefore
+\[
+0
+\le
+\frac{\#\bigl(\mathcal N\cap[0,N)\bigr)}{N}
+\le
+\frac{\#\bigl(\mathcal N_{\mathrm{res}}\cap[0,N)\bigr)}{N}
++\frac1N.
+\]
+Both terms on the right tend to \(0\), so by the squeeze theorem,
+\[
+\operatorname{dens}(\mathcal N)=0.
+\]
+
+For every \(N\ge1\), descent and non-descent partition the positive integers
+below \(N\):
+\[
+\{1,2,\ldots,N-1\}.
+\]
+Consequently,
+\[
+\#(\mathcal D\cap[0,N))
++
+\#(\mathcal N\cap[0,N))
+=
+N-1.
+\]
+Dividing by \(N\) gives
+\[
+\frac{\#(\mathcal D\cap[0,N))}{N}
+=
+1-\frac1N
+-
+\frac{\#(\mathcal N\cap[0,N))}{N}.
+\]
+The last two terms tend to \(0\). Hence
+\[
+\operatorname{dens}(\mathcal D)=1.
+\]
+\end{proof}
+
+\begin{remark}[Scope of the Theorem]
+The theorem asserts that for a set of positive integers of natural density
+one, some ordinary Collatz iterate is strictly smaller than the starting
+value:
+\[
+\exists m,\qquad T^m(x)<x.
+\]
+
+It does not assert that every positive starting value has this property,
+nor does it assert that every Collatz trajectory reaches \(1\). A
+density-zero exceptional set may still be nonempty or infinite.
+\end{remark}
+
+
+% ============================================================
+\section{Conclusion}
+% ============================================================
+
+This paper develops a symbolic--arithmetic framework for finite trajectories
+of the fully accelerated Collatz map and uses it to prove density-one
+eventual descent for the ordinary Collatz map. Division words encode exact
+sequences of \(2\)-adic valuations, while the affine representation
+\[
+F_\omega(x)
+=
+\frac{3^{|\omega|}x+c(\omega)}{2^{D(\omega)}}
+\]
+translates that symbolic data into explicit arithmetic constraints.
+
+Exact realizability requires one additional dyadic parity condition beyond
+formal integrality. For every admissible division word \(\omega\), its
+realizations form a unique residue class modulo
+\[
+2^{D(\omega)+1}.
+\]
+These realization classes therefore form dyadic cylinders of natural density
+\[
+2^{-(D(\omega)+1)},
+\]
+with symbolic prefix extension corresponding exactly to cylinder
+containment.
+
+The affine slope separates symbolic prefixes according to whether it remains
+above \(1\) or has become subunit. This leads to the residual forest:
+residual words are those whose nonempty prefixes remain above unit affine
+slope, while first-contraction words cross below unit slope for the first
+time at their terminal position. At each finite depth the residual family is
+finite, and the corresponding realization sets satisfy the exact
+decomposition
+\[
+\mathcal R_m
+=
+\mathcal F_{m+1}
+\sqcup
+\mathcal R_{m+1}.
+\]
+Thus the unresolved population is partitioned without loss or duplication
+between first-contraction exits and continued residual survival.
+
+The quantitative core of the argument is the decay of the residual mass.
+An auxiliary weight
+\[
+\left(\frac38\right)^{D(\omega)}
+\]
+gives a uniform one-step contraction bound \(3/5\). Comparison with the
+true dyadic cylinder mass, together with the integer threshold estimate
+\[
+B(m+5)\le B(m)+8,
+\]
+gives a strict contraction of the residual-mass envelope over five steps.
+Consequently,
+\[
+M_m=\operatorname{dens}(\mathcal R_m)\longrightarrow0.
+\]
+
+Affine contraction alone does not force every realization of a fixed word
+to descend, because the affine constant may obstruct descent for finitely
+many small starting values. The residual forest resolves this uniformly:
+at each first-contraction depth, the finitely many residual parents yield a
+single finite cutoff above which every realization in that exit layer
+descends. Combining this finite-layer control with residual mass collapse
+shows that the set of initially residual trajectories that never descend has
+natural density zero.
+
+The remaining congruence classes require no residual analysis. Positive even
+integers descend immediately under the ordinary Collatz map, while odd
+integers congruent to \(1\pmod4\), apart from the trivial value \(1\),
+descend after one fully accelerated step. The only nontrivial initial class
+is
+\[
+x\equiv3\pmod4,
+\]
+which is precisely the realization set \(\mathcal R_1\) of the root word
+\((1)\) of the residual forest. Accelerated descent for an odd integer
+occurs at an actual iterate of the ordinary Collatz map, so the accelerated
+result transfers directly to ordinary eventual descent.
+
+Hence
+\[
+\boxed{
+\lim_{N\to\infty}
+\frac{
+\#\left\{
+x\in\mathbb N_{>0}:
+x<N,\;
+\exists m\ge0,\;
+T^m(x)<x
+\right\}
+}{N}
+=
+1.
+}
+\]
+
+The proof developed here is organized through a sequence of exact
+mathematical structures:
+\[
+\boxed{
+\begin{aligned}
+\text{division words}
+&\longrightarrow
+\text{affine realization}
+\longrightarrow
+\text{dyadic cylinders}
+\\
+&\longrightarrow
+\text{residual forest}
+\longrightarrow
+\text{residual mass collapse}
+\longrightarrow
+\text{eventual descent}.
+\end{aligned}
+}
+\]
+Several ingredients underlying this framework---including affine
+representations of finite Collatz trajectories, finite residue coding, and
+density-one finite stopping---have classical antecedents in the work of
+Terras and Everett. The formulation used here reorganizes these ideas in
+terms of exact accelerated division counts and a residual-cylinder
+decomposition, leading to the residual-mass argument above. At each stage
+the symbolic description is tied to exact arithmetic rather than to a
+heuristic trajectory model, and the final density argument uses only
+finite-stage decompositions and ordinary natural-density limits.
+
+The result does not prove that every Collatz trajectory descends below its
+starting value, nor does it prove convergence of every trajectory to \(1\).
+A density-zero exceptional set may remain nonempty or infinite. What is
+proved is that eventual descent below the initial value holds for a set of
+positive integers of natural density one.
+
+\appendix
+
+% ============================================================
+\newpage
+\section{Explicit Computation of the Affine Map}
+\label{app:canonical-c}
+% ============================================================
+
+Each division word
+\[
+\omega=(d_0,\dots,d_{m-1})
+\]
+determines the formal affine map
+\[
+F_\omega(x)
+=
+\frac{3^m x+c(\omega)}{2^{D(\omega)}},
+\qquad
+D(\omega)=\sum_{i=0}^{m-1}d_i,
+\]
+where the affine constant \(c(\omega)\) is determined uniquely by symbolic
+composition.
+
+By Theorem~\ref{thm:explicit-affine-constant}, the constant is given
+explicitly by
+\[
+c(\omega)
+=
+\sum_{j=0}^{m-1}
+3^{m-1-j}
+2^{\sum_{i=0}^{j-1}d_i}.
+\]
+This is an integer identity, not a choice of residue representative modulo
+\(2^{D(\omega)}\). In particular, \(c(\omega)\) need not lie in the interval
+\[
+0\le c(\omega)<2^{D(\omega)}.
+\]
+
+For example, if
+\[
+\omega=(1,1),
+\]
+then
+\[
+c(\omega)=3+2=5,
+\]
+and therefore
+\[
+F_\omega(x)=\frac{9x+5}{4}.
+\]
+Although
+\[
+5\equiv1\pmod4,
+\]
+replacing \(5\) by \(1\) would change the affine map:
+\[
+\frac{9x+1}{4}\ne\frac{9x+5}{4}.
+\]
+Thus the affine constant must be retained as the actual integer produced by
+symbolic composition rather than reduced modulo the denominator.
+
+% ------------------------------------------------------------
+\subsection{A Four-Step Example}
+% ------------------------------------------------------------
+
+Consider
+\[
+\omega=(1,1,1,4).
+\]
+Then
+\[
+m=4,
+\qquad
+D(\omega)=7,
+\]
+and
+\[
+\begin{aligned}
+c(\omega)
+&=
+3^3
++
+3^2 2^1
++
+3\,2^{1+1}
++
+2^{1+1+1}
+\\
+&=
+27+18+12+8
+\\
+&=
+65.
+\end{aligned}
+\]
+Hence
+\[
+\boxed{
+F_\omega(x)=\frac{81x+65}{128}.
+}
+\]
+
+The formal-integrality condition is
+\[
+81x+65\equiv0\pmod{128},
+\]
+which gives
+\[
+x\equiv15\pmod{128}.
+\]
+Thus every integer of the form
+\[
+x=15+128k
+\]
+makes the formal affine expression integral, and
+\[
+F_\omega(15+128k)
+=
+81k+10.
+\]
+
+Formal integrality, however, is weaker than exact realization. By
+Theorem~\ref{thm:exact-realization-criterion}, exact realization is
+equivalent to
+\[
+81x+65
+\equiv
+128
+\pmod{256},
+\]
+which says precisely that the quotient remaining after removal of the
+prescribed total power \(2^7\) is odd. Solving gives
+\[
+\boxed{
+x\equiv143\pmod{256}.
+}
+\]
+
+Thus the formal-integrality class
+\[
+15\pmod{128}
+\]
+splits into two classes modulo \(256\). Only
+\[
+143\pmod{256}
+\]
+realizes the division word \((1,1,1,4)\).
+
+This distinction can also be seen directly from
+\[
+F_\omega(15+128k)=81k+10.
+\]
+The endpoint is odd exactly when \(k\) is odd. Writing
+\[
+k=2j+1
+\]
+gives
+\[
+x
+=
+15+128(2j+1)
+=
+143+256j,
+\]
+which is precisely the exact realization class.
+
+For the canonical representative \(x=143\),
+\[
+F_\omega(143)
+=
+\frac{81\cdot143+65}{128}
+=
+91.
+\]
+The accelerated trajectory is
+\[
+143\longmapsto215\longmapsto323\longmapsto485\longmapsto91,
+\]
+with successive division counts
+\[
+(1,1,1,4).
+\]
+
+% ------------------------------------------------------------
+\subsection{Direct Derivation by Symbolic Substitution}
+% ------------------------------------------------------------
+
+For completeness, consider a general four-entry division word
+\[
+\omega=(a,b,c,d).
+\]
+The formal symbolic relations are
+\[
+x_1=\frac{3x_0+1}{2^a},
+\qquad
+x_2=\frac{3x_1+1}{2^b},
+\qquad
+x_3=\frac{3x_2+1}{2^c},
+\qquad
+x_4=\frac{3x_3+1}{2^d}.
+\]
+
+Eliminating the intermediate variables gives
+\[
+2^{a+b+c+d}x_4
+=
+3^4x_0
++
+3^3
++
+3^2 2^a
++
+3\,2^{a+b}
++
+2^{a+b+c}.
+\]
+Therefore
+\[
+F_\omega(x)
+=
+\frac{
+3^4x+
+3^3+
+3^2 2^a+
+3\,2^{a+b}+
+2^{a+b+c}
+}{
+2^{a+b+c+d}
+},
+\]
+and hence
+\[
+\boxed{
+c(\omega)
+=
+3^3+
+3^2 2^a+
+3\,2^{a+b}+
+2^{a+b+c}.
+}
+\]
+
+This calculation illustrates how each successive ``\(+1\)'' term is
+propagated through the later affine steps. Earlier contributions acquire
+additional factors of \(3\), while the powers of \(2\) record the prescribed
+divisions occurring before each contribution reaches the final numerator.
+
+The example also illustrates the distinction used throughout the paper:
+the affine constant is determined by symbolic composition, formal
+integrality is a congruence modulo \(2^{D(\omega)}\), and, for admissible
+words, exact realization is characterized by the strengthened congruence
+modulo \(2^{D(\omega)+1}\).
+
+
+% ============================================================
+\clearpage
+\bibliographystyle{unsrtnat}
+\bibliography{references}
+
+\end{document}

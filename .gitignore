@@ -1,0 +1,35 @@
+# ============================================================
+# Lean / Lake build artifacts
+# ============================================================
+
+lean/.lake/
+
+
+# ============================================================
+# LaTeX auxiliary files
+#
+# The manuscript PDF is intentionally tracked as a publication
+# artifact, so do NOT ignore *.pdf.
+# ============================================================
+
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.xdv
+
+
+# ============================================================
+# Editor / operating-system debris
+# ============================================================
+
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.swo
