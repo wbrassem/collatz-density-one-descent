@@ -25,7 +25,7 @@ $$
 then
 
 $$
-\operatorname{dens}
+\mathrm{dens}
 \left\{
 x\in\mathbb N_{>0} :
 \exists n,\; T^n(x)<x
