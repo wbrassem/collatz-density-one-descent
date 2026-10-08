@@ -25,11 +25,11 @@ $$
 then
 
 $$
-\mathrm{dens}
-\left\{
-x\in\mathbb N_{>0} :
+\mathrm{dens}\,
+\{
+x\in\mathbb{N}_{>0} :
 \exists n,\; T^n(x)<x
-\right\}
+\}
 =1.
 $$
 

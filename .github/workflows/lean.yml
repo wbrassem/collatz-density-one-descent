@@ -2,8 +2,14 @@ name: Lean CI
 
 on:
   push:
-  pull_request:
+    paths:
+      - 'lean/**'
+      - '.github/workflows/lean.yml'
 
+  pull_request:
+    paths:
+      - 'lean/**'
+      - '.github/workflows/lean.yml'
 jobs:
   lean:
     runs-on: ubuntu-latest
