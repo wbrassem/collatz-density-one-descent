@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite the manuscript below."
+type: software
+authors:
+  - family-names: "Brassem"
+    given-names: "Wayne"
+title: "Collatz Density-One Descent"
+version: "1.0.0"
+date-released: 2026-10-08
+repository-code: "https://github.com/wbrassem/collatz-density-one-descent"
+
+preferred-citation:
+  type: unpublished
+  authors:
+    - family-names: "Brassem"
+      given-names: "Wayne"
+  title: "A Symbolic–Affine Framework for Density-One Collatz Descent"
+  year: 2026
+  url: "https://github.com/wbrassem/collatz-density-one-descent"
