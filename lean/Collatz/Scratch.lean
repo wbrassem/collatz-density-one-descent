@@ -45,7 +45,7 @@ Because `Scratch.lean` is not imported by the production root module, the
 normal project build need not be used as the mechanism for exercising these
 checks. From the Lean project directory
 
-    src/lean
+    lean
 
 run the file directly in the Lake project environment with
 
@@ -79,9 +79,6 @@ diagnostics, theorem inspection, and independent validation of the production
 proof rather than as part of the proof itself.
 
 -/
-
-/- Every language needs its equivalent of a hello world. -/
-def hello := "world"
 
 /- Open the Collatz namespace -/
 namespace Collatz
@@ -139,13 +136,6 @@ example : padicValNat 2 16 = 4 := by
 
 /- Regression check for the basic division-count table. -/
 #guard List.map division_count [1, 2, 3, 4, 5] == [2, 0, 1, 0, 4]
-
-/- Show that the quotient associated with the decomposition is odd. -/
-example {n k m : ℕ} (hn : n = 2 ^ k * m) (hm : Odd m) :
-    Odd (n / 2 ^ k) := by
-  rw [hn]
-  norm_num
-  exact hm
 
 /- Show that the quotient associated with the decomposition is odd. -/
 example {n k m : ℕ} (hn : n = 2 ^ k * m) (hm : Odd m) :

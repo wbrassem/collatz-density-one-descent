@@ -60,3 +60,41 @@ To rebuild the manuscript locally:
 ```bash
 cd manuscript
 latexmk -pdf -interaction=nonstopmode -halt-on-error Symbolic_Affine_Collatz.tex
+```
+
+## Lean formalization
+
+The Lean 4 formalization is contained in `lean/`. To build the complete
+formal development and run the verification harness:
+
+```bash
+cd lean
+lake build
+lake env lean Collatz/Scratch.lean
+```
+
+The culminating theorem is
+
+```text
+Collatz.ordinary_collatz_descent_has_natural_density_one
+```
+
+Continuous integration builds the Lean project, runs the verification
+harness, and audits the `Collatz` namespace for axiomatic dependencies.
+The permitted foundational axioms are
+
+```text
+propext
+Classical.choice
+Quot.sound
+```
+
+No project-specific mathematical axioms are permitted by the CI audit.
+
+## Licensing
+
+The Lean source and project files under `lean/` are licensed under the
+Apache License 2.0; see `lean/LICENSE`.
+
+The manuscript files under `manuscript/` are not covered by that software
+license. No separate license is currently granted for the manuscript.
